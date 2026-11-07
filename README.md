@@ -6,6 +6,8 @@ businesses can discover taskers who **chose** to be visible for stable work.
 
 "Local Tasks" is a working title. It lives in one place: `js/config.js`.
 
+**Try it online:** [web app](https://plajerone3.github.io/local-tasks/) · [mobile app view](https://plajerone3.github.io/local-tasks/app.html) (GitHub Pages; all data is fake demo data and stays in your browser).
+
 This folder is self-contained: every path is relative, and nothing outside it is used.
 
 ## Run it
@@ -101,12 +103,12 @@ js/select.js          read-only queries
 js/ui/                html templating, components, dialogs, icons, UI state
 js/views/             one module per screen, named by user intent
 tests/                node:test suites
-docs/                 product brief (.md, .docx) and the script that builds the .docx
+docs/                 product brief and its build script — kept local, ignored by git
 .claude/launch.json   preview config for Claude Code (python3 http.server on 4180)
 ```
 
-To rebuild the brief after editing `docs/product_brief.md`: `python3 docs/build_product_brief.py`
-(needs `python-docx`).
+The product brief stays local (`docs/` is in `.gitignore`). To rebuild it after editing
+`docs/product_brief.md`: `python3 docs/build_product_brief.py` (needs `python-docx`).
 
 Views never write to the store directly. They call `services/*`, which validate, apply status
 transitions through `logic/status.js`, write via `store.update()`, and emit notifications. To
