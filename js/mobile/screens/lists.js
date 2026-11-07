@@ -4,7 +4,7 @@ import { icon } from '../../ui/icons.js';
 import { statusBadge } from '../../ui/components.js';
 import { tasksByClient, assignmentsForUser, applicationsByTasker, taskById, userById, assignmentForTask, conversationsOf, conversationById, messagesOf, otherParticipant, unreadIn, publicName, isBlocked, notificationsOf, me, businessOf, activeApplicationsForTask } from '../../select.js';
 import { update } from '../../store.js';
-import { fmt, t } from '../../i18n.js';
+import { fmt, t, tr, trn } from '../../i18n.js';
 import { contactUnlocked, sendMessage, markRead } from '../../services/messaging.js';
 import { reportButton, blockButton } from '../../views/common.js';
 import { screen, topbar, catBadge, catColor, mAvatar, segmented, emptyM, toMobile } from '../ui.js';
@@ -28,7 +28,7 @@ function clientItems(user, tab) {
     .map((x) => {
       const asg = assignmentForTask(x.id);
       const offers = activeApplicationsForTask(x.id).filter((a) => ['applied', 'shortlisted'].includes(a.status)).length;
-      return { href: asg && asg.status !== 'cancelled' ? `/job/${asg.id}` : `/task/${x.id}`, category: x.category, title: x.title, sub: `${fmt.date(x.date)} · ${x.status === 'open' ? `${offers} ${offers === 1 ? 'offer' : 'offers'}` : fmt.window(x.timeWindow)}`, status: x.status, kind: 'task', price: fmt.range(x.budgetMin, x.budgetMax) };
+      return { href: asg && asg.status !== 'cancelled' ? `/job/${asg.id}` : `/task/${x.id}`, category: x.category, title: x.title, sub: `${fmt.date(x.date)} · ${x.status === 'open' ? trn(offers, '{n} offer', '{n} offers') : fmt.window(x.timeWindow)}`, status: x.status, kind: 'task', price: fmt.range(x.budgetMin, x.budgetMax) };
     });
 }
 
@@ -48,27 +48,27 @@ function taskerItems(user, tab) {
 }
 
 export const activity = {
-  title: () => 'Activity',
+  title: () => tr('Activity'),
   render(ctx) {
     const tab = ctx.query.tab === 'past' ? 'past' : 'upcoming';
     const items = ctx.role === 'tasker' ? taskerItems(ctx.user, tab) : clientItems(ctx.user, tab);
     const other = ctx.role === 'tasker' ? taskerItems(ctx.user, tab === 'past' ? 'upcoming' : 'past') : clientItems(ctx.user, tab === 'past' ? 'upcoming' : 'past');
     const content = html`<div class="m-pad">
-      ${segmented([{ id: 'upcoming', label: 'Upcoming', href: '/activity', count: tab === 'upcoming' ? items.length : other.length }, { id: 'past', label: 'Past', href: '/activity?tab=past' }], tab, 'Activity')}
+      ${segmented([{ id: 'upcoming', label: tr('Upcoming'), href: '/activity', count: tab === 'upcoming' ? items.length : other.length }, { id: 'past', label: tr('Past'), href: '/activity?tab=past' }], tab, tr('Activity'))}
       ${items.length ? html`<ul class="m-tlist">${items.map(activityRow)}</ul>`
-        : emptyM({ emoji: tab === 'upcoming' ? '🗓️' : '📭', title: tab === 'upcoming' ? 'Nothing coming up' : 'No past activity yet', body: ctx.role === 'tasker' ? 'Offers and jobs show up here.' : 'Tasks you post show up here.', color: 'lavender', action: ctx.role === 'tasker' ? html`<a class="m-btn m-btn--primary" href="#/work">Find work</a>` : html`<a class="m-btn m-btn--primary" href="#/post">Post a task</a>` })}
+        : emptyM({ emoji: tab === 'upcoming' ? '🗓️' : '📭', title: tr(tab === 'upcoming' ? 'Nothing coming up' : 'No past activity yet'), body: tr(ctx.role === 'tasker' ? 'Offers and jobs show up here.' : 'Tasks you post show up here.'), color: 'lavender', action: ctx.role === 'tasker' ? html`<a class="m-btn m-btn--primary" href="#/work">${tr('Find work')}</a>` : html`<a class="m-btn m-btn--primary" href="#/post">${tr('Post a task')}</a>` })}
     </div>`;
-    return screen({ ctx, top: topbar({ title: 'Activity', large: true }), content });
+    return screen({ ctx, top: topbar({ title: tr('Activity'), large: true }), content });
   },
 };
 
 function convLabel(conv) {
-  if (conv.contextType === 'task') return { text: taskById(conv.contextId)?.title || 'Task', color: catColor(taskById(conv.contextId)?.category) };
-  return { text: 'Stable work', color: 'lavender' };
+  if (conv.contextType === 'task') return { text: taskById(conv.contextId)?.title || tr('Task'), color: catColor(taskById(conv.contextId)?.category) };
+  return { text: tr('Stable work'), color: 'lavender' };
 }
 
 export const inbox = {
-  title: () => 'Inbox',
+  title: () => tr('Inbox'),
   render(ctx) {
     const user = ctx.user;
     const convs = conversationsOf(user.id).filter((c) => !isBlocked(user.id, otherParticipant(c, user.id)));
@@ -81,20 +81,20 @@ export const inbox = {
         <span class="m-row__lead">${mAvatar(other)}</span>
         <span class="m-row__text"><span class="m-row__title">${publicName(other)} <span class="m-row__time">${last ? fmt.relative(last.createdAt) : ''}</span></span>
           <span class="m-row__ctx c-${lab.color}">${lab.text}</span>
-          <span class="m-row__sub">${last ? `${last.senderId === user.id ? 'You: ' : ''}${last.body}` : 'No messages yet'}</span></span>
-        <span class="m-row__trail">${unread ? html`<span class="m-unread" aria-label="${unread} unread">${unread}</span>` : ''}</span>
+          <span class="m-row__sub">${last ? `${last.senderId === user.id ? tr('You: ') : ''}${last.body}` : tr('No messages yet')}</span></span>
+        <span class="m-row__trail">${unread ? html`<span class="m-unread" aria-label="${tr('{n} unread', { n: unread })}">${unread}</span>` : ''}</span>
       </a></li>`;
-    })}</ul>` : emptyM({ emoji: '💬', title: 'No messages yet', body: 'Chats start from a task or a request from a business.', color: 'sky' })}</div>`;
-    return screen({ ctx, top: topbar({ title: 'Inbox', large: true }), content });
+    })}</ul>` : emptyM({ emoji: '💬', title: tr('No messages yet'), body: tr('Chats start from a task or a request from a business.'), color: 'sky' })}</div>`;
+    return screen({ ctx, top: topbar({ title: tr('Inbox'), large: true }), content });
   },
 };
 
 export const thread = {
-  title: () => 'Chat',
+  title: () => tr('Chat'),
   render(ctx) {
     const user = ctx.user;
     const conv = conversationById(ctx.params.id);
-    if (!conv || !conv.participantIds.includes(user.id)) return screen({ ctx, content: html`<div class="m-pad">${emptyM({ emoji: '🔒', title: 'You’re not part of this chat' })}</div>` });
+    if (!conv || !conv.participantIds.includes(user.id)) return screen({ ctx, content: html`<div class="m-pad">${emptyM({ emoji: '🔒', title: tr('You’re not part of this chat') })}</div>` });
     const otherId = otherParticipant(conv, user.id);
     const other = userById(otherId);
     const lab = convLabel(conv);
@@ -102,28 +102,28 @@ export const thread = {
     const msgs = messagesOf(conv.id);
     const biz = conv.contextType === 'recruiting' ? businessOf(conv.participantIds.find((p) => userById(p)?.roles.includes('business'))) : null;
     const top = html`<header class="m-top m-top--chat">
-      <a class="m-iconbtn" href="#/inbox" aria-label="Back to inbox">${icon('back', 22)}</a>
+      <a class="m-iconbtn" href="#/inbox" aria-label="${tr('Back to inbox')}">${icon('back', 22)}</a>
       <a class="m-chat-who" href="#${conv.contextType === 'task' ? `/task/${conv.contextId}` : '/recruiting'}">${mAvatar(other, 'sm')}<span><strong class="m-top__title" tabindex="-1">${publicName(other)}</strong><span class="m-row__ctx c-${lab.color}">${lab.text}</span></span></a>
       <span class="m-top__actions">${blockButton(otherId, { cls: 'm-iconbtn' })}</span>
     </header>`;
     const content = html`<div class="m-chat">
-      <p class="m-chat__notice">${icon('lock', 14)}${conv.contextType === 'recruiting' ? `Recruiting chat with ${biz?.companyName || 'a business'}. Not a job offer; share only what you want.` : contactUnlocked(conv) ? 'Task accepted. Share contact details only if you want to.' : t('privacy.contact')}</p>
-      <ol class="m-msgs" aria-label="Messages">${msgs.map((m) => {
+      <p class="m-chat__notice">${icon('lock', 14)}${conv.contextType === 'recruiting' ? tr('Recruiting chat with {company}. Not a job offer; share only what you want.', { company: biz?.companyName || tr('a business') }) : contactUnlocked(conv) ? tr('Task accepted. Share contact details only if you want to.') : t('privacy.contact')}</p>
+      <ol class="m-msgs" aria-label="${tr('Messages')}">${msgs.map((m) => {
         if (m.system) return html`<li class="m-msg m-msg--system">${m.body}</li>`;
-        if (m.hidden) return html`<li class="m-msg m-msg--system">A message was hidden by a moderator.</li>`;
+        if (m.hidden) return html`<li class="m-msg m-msg--system">${tr('A message was hidden by a moderator.')}</li>`;
         const mine = m.senderId === user.id;
         return html`<li class="m-msg ${mine ? 'm-msg--mine' : 'm-msg--theirs'}">
-          <span class="visually-hidden">${mine ? 'You' : publicName(other)}:</span>
+          <span class="visually-hidden">${mine ? tr('You') : publicName(other)}:</span>
           <span class="m-msg__bubble">${m.body}</span>
-          <span class="m-msg__meta">${fmt.time(m.createdAt)}${m.masked ? html` · ${icon('lock', 11)} hidden details` : ''}${m.simulated ? html` · <span class="m-demo">demo reply</span>` : ''}${!mine ? reportButton('message', m.id, { userId: otherId, label: 'Report', cls: 'm-link m-link--tiny' }) : ''}</span>
+          <span class="m-msg__meta">${fmt.time(m.createdAt)}${m.masked ? html` · ${icon('lock', 11)} ${tr('hidden details')}` : ''}${m.simulated ? html` · <span class="m-demo">${tr('demo reply')}</span>` : ''}${!mine ? reportButton('message', m.id, { userId: otherId, label: tr('Report'), cls: 'm-link m-link--tiny' }) : ''}</span>
         </li>`;
       })}</ol>
     </div>`;
-    const footer = blocked ? html`<p class="m-footnote">You can’t message here because one of you blocked the other.</p>`
+    const footer = blocked ? html`<p class="m-footnote">${tr('You can’t message here because one of you blocked the other.')}</p>`
       : html`<form class="m-composer" data-form="m-send" data-conv="${conv.id}" novalidate>
-        <label class="visually-hidden" for="m-composer">Message ${publicName(other)}</label>
-        <textarea id="m-composer" name="body" rows="1" class="m-composer__input" placeholder="Message…" maxlength="2000"></textarea>
-        <button class="m-composer__send" type="submit" aria-label="Send">${icon('send', 20)}</button>
+        <label class="visually-hidden" for="m-composer">${tr('Message {name}', { name: publicName(other) })}</label>
+        <textarea id="m-composer" name="body" rows="1" class="m-composer__input" placeholder="${tr('Message…')}" maxlength="2000"></textarea>
+        <button class="m-composer__send" type="submit" aria-label="${tr('Send')}">${icon('send', 20)}</button>
       </form>`;
     return screen({ ctx, top, content, footer, tabs: false, cls: 'm-screen--chat' });
   },
@@ -136,17 +136,17 @@ export const thread = {
 };
 
 export const notifications = {
-  title: () => 'Notifications',
+  title: () => tr('Notifications'),
   render(ctx) {
     const list = notificationsOf(ctx.user.id);
     const unread = list.filter((n) => !n.read).length;
     const content = html`<div class="m-pad">${list.length ? html`<ul class="m-list">${list.map((n, i) => html`<li><button type="button" class="m-row m-row--note${n.read ? '' : ' is-unread'}" data-action="m-note" data-id="${n.id}" data-href="${toMobile(n.href)}">
       <span class="m-row__lead"><span class="m-notedot c-${['sun', 'tomato', 'mint', 'sky', 'bubble', 'lavender', 'lime'][i % 7]}" aria-hidden="true">${icon('bell', 16)}</span></span>
-      <span class="m-row__text"><span class="m-row__title">${n.text}</span><span class="m-row__sub">${fmt.relative(n.createdAt)}${n.read ? '' : ' · new'}</span></span>
+      <span class="m-row__text"><span class="m-row__title">${n.text}</span><span class="m-row__sub">${fmt.relative(n.createdAt)}${n.read ? '' : ` · ${tr('new')}`}</span></span>
       <span class="m-row__trail">${icon('chevron', 18)}</span>
-    </button></li>`)}</ul>` : emptyM({ emoji: '🔔', title: 'All quiet', body: 'Offers, messages and updates show up here.', color: 'sun' })}</div>`;
-    const actions = unread ? html`<button type="button" class="m-link" data-action="m-notes-read">Mark all read</button>` : '';
-    return screen({ ctx, top: topbar({ title: 'Notifications', back: '/home', actions }), content });
+    </button></li>`)}</ul>` : emptyM({ emoji: '🔔', title: tr('All quiet'), body: tr('Offers, messages and updates show up here.'), color: 'sun' })}</div>`;
+    const actions = unread ? html`<button type="button" class="m-link" data-action="m-notes-read">${tr('Mark all read')}</button>` : '';
+    return screen({ ctx, top: topbar({ title: tr('Notifications'), back: '/home', actions }), content });
   },
 };
 
@@ -167,7 +167,7 @@ export const forms = {
     const res = sendMessage(form.dataset.conv, me().id, data.get('body') || '');
     if (!res.ok) return toast(res.message || res.errors.body, 'danger');
     form.reset();
-    if (res.masked) toast('Contact details were hidden. You can share them once the task is accepted.', 'info');
+    if (res.masked) toast(tr('Contact details were hidden. You can share them once the task is accepted.'), 'info');
     setTimeout(() => document.getElementById('m-composer')?.focus(), 0);
   },
 };

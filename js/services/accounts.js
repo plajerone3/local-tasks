@@ -1,5 +1,6 @@
 // Accounts, roles and profiles. Mock auth: no passwords, the session is just a user id.
 // TODO(backend): replace with real authentication (e.g. passwordless email + session cookies).
+import { tr } from '../i18n.js';
 import { update, getState, session } from '../store.js';
 import { userById, taskerProfileOf, businessOf } from '../select.js';
 import { uid, nowIso, WEEKDAYS } from '../util.js';
@@ -28,7 +29,7 @@ export function signUp({ name, email, roles, agree }) {
   const errors = validateSignup({ name, email, roles, agree });
   const normalized = String(email || '').trim().toLowerCase();
   if (!errors.email && getState().users.some((u) => u.email.toLowerCase() === normalized)) {
-    errors.email = 'An account with this email already exists. Sign in instead.';
+    errors.email = tr('An account with this email already exists. Sign in instead.');
   }
   if (hasErrors(errors)) return fail(errors);
   const id = uid('u');
@@ -55,14 +56,14 @@ export function signUp({ name, email, roles, agree }) {
 export function signIn(email) {
   const normalized = String(email || '').trim().toLowerCase();
   const u = getState().users.find((x) => x.email.toLowerCase() === normalized);
-  if (!u) return fail({ email: 'We could not find an account with that email. Check the spelling or create an account.' });
+  if (!u) return fail({ email: tr('We could not find an account with that email. Check the spelling or create an account.') });
   session.set({ userId: u.id, role: u.roles[0] });
   return ok({ id: u.id, role: u.roles[0] });
 }
 
 export function signInAs(userId, role) {
   const u = userById(userId);
-  if (!u) return fail({}, 'That demo account no longer exists. Try resetting the demo.');
+  if (!u) return fail({}, tr('That demo account no longer exists. Try resetting the demo.'));
   session.set({ userId, role: u.roles.includes(role) ? role : u.roles[0] });
   return ok({ role: u.roles.includes(role) ? role : u.roles[0] });
 }
@@ -75,13 +76,13 @@ export function signOut() {
 export function switchRole(role) {
   const s = session.get();
   const u = userById(s?.userId);
-  if (!u?.roles.includes(role)) return fail({}, 'This account does not have that role yet.');
+  if (!u?.roles.includes(role)) return fail({}, tr('This account does not have that role yet.'));
   session.set({ ...s, role });
   return ok();
 }
 
 export function addRole(userId, role) {
-  if (!['client', 'tasker'].includes(role)) return fail({}, 'Business accounts are separate organisation accounts.');
+  if (!['client', 'tasker'].includes(role)) return fail({}, tr('Business accounts are separate organisation accounts.'));
   update((s) => {
     const u = s.users.find((x) => x.id === userId);
     if (!u.roles.includes(role)) u.roles.push(role);
@@ -95,7 +96,7 @@ export function addRole(userId, role) {
 export function updateAccount(userId, d) {
   const errors = validateAccount(d);
   const email = String(d.email || '').trim().toLowerCase();
-  if (!errors.email && getState().users.some((u) => u.id !== userId && u.email.toLowerCase() === email)) errors.email = 'Another account already uses this email.';
+  if (!errors.email && getState().users.some((u) => u.id !== userId && u.email.toLowerCase() === email)) errors.email = tr('Another account already uses this email.');
   if (hasErrors(errors)) return fail(errors);
   update((s) => {
     const u = s.users.find((x) => x.id === userId);
@@ -159,7 +160,7 @@ export function saveOpportunity(userId, d) {
 
 export function setDiscoverability(userId, on) {
   const p = taskerProfileOf(userId);
-  if (!p) return fail({}, 'Create a tasker profile first.');
+  if (!p) return fail({}, tr('Create a tasker profile first.'));
   const types = p.employmentGoal?.types?.length ? p.employmentGoal.types : ['part_time'];
   return saveOpportunity(userId, { seeking: on, consent: true, fields: p.employmentGoal?.fields || [], types, note: p.employmentGoal?.note || '' });
 }
@@ -188,7 +189,7 @@ export function addProof(userId, d) {
   update((s) => {
     s.proofItems.push({ id, taskerId: userId, label: d.label.trim(), type: d.type, status: d.requestReview ? 'pending_review' : 'self_reported', visibility: d.visibility || 'public', fileName: d.fileName || null, createdAt: nowIso() });
     s.taskerProfiles.find((p) => p.userId === userId)?.proofItems.push(id);
-    if (d.requestReview) notifyModerators(s, `Proof waiting for review: “${d.label.trim()}”.`, '/moderation?tab=proof', userId);
+    if (d.requestReview) notifyModerators(s, tr('Proof waiting for review: “{label}”.', { label: d.label.trim() }), '/moderation?tab=proof', userId);
   });
   return ok({ id });
 }
@@ -198,14 +199,14 @@ export function requestProofReview(userId, proofId) {
     const p = s.proofItems.find((x) => x.id === proofId && x.taskerId === userId);
     if (p && p.status === 'self_reported') {
       p.status = 'pending_review';
-      notifyModerators(s, `Proof waiting for review: “${p.label}”.`, '/moderation?tab=proof', userId);
+      notifyModerators(s, tr('Proof waiting for review: “{label}”.', { label: p.label }), '/moderation?tab=proof', userId);
     }
   });
   return ok();
 }
 
 export function setProofVisibility(userId, proofId, visibility) {
-  if (!['public', 'businesses', 'private'].includes(visibility)) return fail({}, 'Unknown visibility.');
+  if (!['public', 'businesses', 'private'].includes(visibility)) return fail({}, tr('Unknown visibility.'));
   update((s) => {
     const p = s.proofItems.find((x) => x.id === proofId && x.taskerId === userId);
     if (p) p.visibility = visibility;
@@ -257,9 +258,9 @@ export function saveBusiness(userId, d) {
 }
 
 export function enableRecruiting(userId, consent) {
-  if (!consent) return fail({ consent: 'Please agree to the recruiting rules to continue.' });
+  if (!consent) return fail({ consent: tr('Please agree to the recruiting rules to continue.') });
   const b = businessOf(userId);
-  if (!b?.companyName) return fail({}, 'Complete the company profile first.');
+  if (!b?.companyName) return fail({}, tr('Complete the company profile first.'));
   update((s) => {
     const x = s.businessProfiles.find((p) => p.userId === userId);
     x.recruitingEnabled = true;
@@ -295,7 +296,7 @@ export function requestDeletion(userId) {
   update((s) => {
     if (!s.dataRequests.some((r) => r.userId === userId && r.type === 'deletion' && r.status === 'received')) {
       s.dataRequests.push({ id: uid('dr'), userId, type: 'deletion', status: 'received', createdAt: nowIso() });
-      notifyModerators(s, 'A data deletion request was received (demo).', '/moderation?tab=reports', userId);
+      notifyModerators(s, tr('A data deletion request was received (demo).'), '/moderation?tab=reports', userId);
     }
   });
   return ok();

@@ -37,7 +37,7 @@ function roleSwitch(ctx) {
   const roles = ctx.user.roles.filter((r) => r === 'client' || r === 'tasker');
   if (roles.length < 2) return '';
   return html`<div class="role-switch" role="group" aria-label="Active role">
-    ${roles.map((r) => html`<button type="button" class="role-switch__btn" data-action="switch-role" data-role="${r}" aria-pressed="${ctx.role === r}">${t(`role.${r}`)}</button>`)}
+    ${roles.map((r) => html`<button type="button" class="role-switch__btn" data-action="switch-role" data-role="${r}" aria-pressed="${String(ctx.role === r)}">${t(`role.${r}`)}</button>`)}
   </div>`;
 }
 

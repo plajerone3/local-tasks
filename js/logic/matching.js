@@ -6,12 +6,12 @@
 // characteristics (age, gender, origin, religion, disability, photo) or payments.
 // Low activity is never a negative signal; newcomers get a small exposure boost.
 import { APP } from '../config.js';
-import { category } from '../data/categories.js';
+import { category, catWord, catSkills } from '../data/categories.js';
 import { field as fieldById } from '../data/fields.js';
-import { distanceKm, city } from '../data/geo.js';
+import { distanceKm, city, cityName } from '../data/geo.js';
 import { joinList, slotsForWindow, weekdayKey, WEEKDAY_LABEL } from '../util.js';
 import { summarize, reliability } from './reputation.js';
-import { fmt } from '../i18n.js';
+import { fmt, tr, getLang } from '../i18n.js';
 
 export const LEVEL_LABEL = { strong: 'Strong fit', good: 'Good fit', possible: 'Possible fit', low: 'Not a close fit' };
 export const LEVEL_TONE = { strong: 'success', good: 'info', possible: 'neutral', low: 'neutral' };
@@ -33,6 +33,12 @@ export function levelFor(score) {
 const firstName = (u) => String(u?.name || '').split(' ')[0];
 const PROOF_WEIGHT = { verified: 1, pending_review: 0.75, self_reported: 0.4, rejected: 0 };
 const PROOF_NOTE = { verified: 'checked by a moderator in the demo', pending_review: 'pending review', self_reported: 'self-reported' };
+const proofNote = (status) => tr(PROOF_NOTE[status]);
+
+// "Wednesday afternoons" / "mittwochs nachmittags"
+const DAY_ADV = { mon: 'montags', tue: 'dienstags', wed: 'mittwochs', thu: 'donnerstags', fri: 'freitags', sat: 'samstags', sun: 'sonntags' };
+const SLOT_ADV = { morning: 'vormittags', afternoon: 'nachmittags', evening: 'abends' };
+const when = (day, slot) => (getLang() === 'de' ? `${DAY_ADV[day]} ${SLOT_ADV[slot] || ''}`.trim() : `${WEEKDAY_LABEL[day]} ${slot ? `${slot}s` : ''}`.trim());
 
 function textHit(skill, text) {
   return skill.toLowerCase().split(/[^a-zäöüß]+/).filter((w) => w.length >= 4).some((w) => text.includes(w.slice(0, 6)));
@@ -41,7 +47,8 @@ function textHit(skill, text) {
 const ORDER = ['low', 'possible', 'good', 'strong'];
 const capLevel = (level, max) => (ORDER.indexOf(level) > ORDER.indexOf(max) ? max : level);
 
-// factors: { key, points, you, they } — `they` is a verb phrase without the name ("offers gardening").
+// factors: { key, points, you, they }. `they` is a phrase without the name: "offers gardening",
+// in German a verb-final clause ("Gartenarbeit anbietet"), so they can be joined after "weil <name>".
 function finish(rawFactors, caveats, { you, name, lowText, maxLevel = 'strong' }) {
   const factors = rawFactors.map((f) => ({ ...f, text: you ? f.you : `${name} ${f.they}` }));
   const score = Math.round(factors.reduce((a, f) => a + f.points, 0));
@@ -53,10 +60,11 @@ function finish(rawFactors, caveats, { you, name, lowText, maxLevel = 'strong' }
   const newcomer = factors.find((f) => f.key === 'newcomer');
   if (newcomer) top.push(newcomer);
   const phrases = top.map((f) => (you ? f.you : f.they));
+  const reasons = `${you ? '' : `${name} `}${joinList(phrases, tr('and'))}`;
   const explanation = level === 'low' || !phrases.length
     ? lowText
-    : `${level === 'possible' ? 'A possible fit: ' : 'Recommended because '}${you ? '' : `${name} `}${joinList(phrases)}.`;
-  return { score, level, label: LEVEL_LABEL[level], tone: LEVEL_TONE[level], factors, caveats, explanation, perspective: you ? 'self' : 'other', name };
+    : tr(level === 'possible' ? 'A possible fit: {reasons}.' : 'Recommended because {reasons}.', { reasons });
+  return { score, level, label: tr(LEVEL_LABEL[level]), tone: LEVEL_TONE[level], factors, caveats, explanation, perspective: you ? 'self' : 'other', name };
 }
 
 /**
@@ -71,78 +79,82 @@ export function taskFit({ task, tasker, profile, reviews = [], proofs = [], pers
   const add = (key, points, youText, theyText) => factors.push({ key, points, you: youText, they: theyText });
   let maxLevel = 'strong';
   const cat = category(task.category);
-  const catName = cat.label.toLowerCase();
+  const catName = catWord(task.category);
   const p = profile || { categories: [], skills: [], availability: {} };
 
   // 1. Category fit
-  if (p.categories.includes(task.category)) add('category', 30, `you selected ${catName}`, `offers ${catName}`);
-  else if ((cat.related || []).some((r) => p.categories.includes(r))) add('category', 12, 'it is close to work you already do', 'does related work');
+  if (p.categories.includes(task.category)) add('category', 30, tr('you selected {cat}', { cat: catName }), tr('offers {cat}', { cat: catName }));
+  else if ((cat.related || []).some((r) => p.categories.includes(r))) add('category', 12, tr('it is close to work you already do'), tr('does related work'));
   else {
     maxLevel = 'possible';
-    caveats.push(you ? `You have not selected ${catName} on your profile.` : `${name} has not listed ${catName}.`);
+    caveats.push(you ? tr('You have not selected {cat} on your profile.', { cat: catName }) : tr('{name} has not listed {cat}.', { name, cat: catName }));
   }
 
   // 2. Relevant skills
   const taskText = `${task.title} ${task.description} ${(task.requirements || []).join(' ')}`.toLowerCase();
+  const known = catSkills(task.category);
   const direct = p.skills.filter((s) => textHit(s, taskText));
-  const inCategory = p.skills.filter((s) => !direct.includes(s) && cat.skills.includes(s));
+  const inCategory = p.skills.filter((s) => !direct.includes(s) && known.includes(s));
   const skillPoints = Math.min(18, direct.length * 6 + inCategory.length * 3);
-  const shown = [...direct, ...inCategory].slice(0, 2);
-  if (skillPoints > 0) add('skills', skillPoints, `your skills (${joinList(shown)}) match`, `lists ${joinList(shown)}`);
+  const shown = joinList([...direct, ...inCategory].slice(0, 2), tr('and'));
+  if (skillPoints > 0) add('skills', skillPoints, tr('your skills ({skills}) match', { skills: shown }), tr('lists {skills}', { skills: shown }));
 
   // 3. Availability on that weekday and time of day
   const day = weekdayKey(task.date);
   const slots = slotsForWindow(task.timeWindow);
   const open = slots.filter((s) => (p.availability?.[day] || []).includes(s));
-  if (open.length) add('availability', 15, `you are usually available on ${WEEKDAY_LABEL[day]} ${open[0]}s`, `is usually available on ${WEEKDAY_LABEL[day]} ${open[0]}s`);
+  if (open.length) add('availability', 15, tr('you are usually available on {when}', { when: when(day, open[0]) }), tr('is usually available on {when}', { when: when(day, open[0]) }));
   else if (maxLevel === 'strong') maxLevel = 'good';
-  if (!open.length) caveats.push(you ? `You have not marked ${WEEKDAY_LABEL[day]} ${slots[0] || ''} as available.` : `${name} has not marked ${WEEKDAY_LABEL[day]} ${slots[0] || ''} as usually available — check the application.`);
+  if (!open.length) caveats.push(you ? tr('You have not marked {when} as available.', { when: when(day, slots[0]) }) : tr('{name} has not marked {when} as usually available — check the application.', { name, when: when(day, slots[0]) }));
 
   // 4. Location area
   const km = distanceKm(task.locationArea, tasker.locationArea);
   const sameCity = task.locationArea?.city === tasker.locationArea?.city;
-  if (sameCity && km != null && km <= 3) add('location', 15, `it is about ${Math.max(1, Math.round(km))} km from your area`, `is about ${Math.max(1, Math.round(km))} km away`);
-  else if (sameCity && km != null && km <= 8) add('location', 11, `it is about ${Math.round(km)} km from your area`, `is about ${Math.round(km)} km away`);
-  else if (sameCity) add('location', 7, `it is in ${city(task.locationArea.city).label}, where you work`, `works in ${city(task.locationArea.city).label}`);
+  if (sameCity && km != null && km <= 3) add('location', 15, tr('it is about {km} km from your area', { km: Math.max(1, Math.round(km)) }), tr('is about {km} km away', { km: Math.max(1, Math.round(km)) }));
+  else if (sameCity && km != null && km <= 8) add('location', 11, tr('it is about {km} km from your area', { km: Math.round(km) }), tr('is about {km} km away', { km: Math.round(km) }));
+  else if (sameCity) add('location', 7, tr('it is in {city}, where you work', { city: cityName(task.locationArea.city) }), tr('works in {city}', { city: cityName(task.locationArea.city) }));
   else {
     maxLevel = 'low';
-    caveats.push(you ? 'This task is in another city.' : `${name} is based in another city.`);
+    caveats.push(you ? tr('This task is in another city.') : tr('{name} is based in another city.', { name }));
   }
 
   // 5. Reviews for similar work (not overall popularity)
   const rep = summarize(reviews);
   const sim = rep.byCategory[task.category];
-  if (sim && sim.count >= 3 && sim.avg >= 4.5) add('reviews', 12, `you have strong reviews on similar work (${fmt.rating(sim.avg)} from ${sim.count} ${catName} tasks)`, `has strong reviews on similar work (${fmt.rating(sim.avg)} from ${sim.count} ${catName} tasks)`);
-  else if (sim && sim.count >= 1 && sim.avg >= 4) add('reviews', 7, 'you have good reviews on similar work', 'has good reviews on similar work');
-  else if (rep.count >= 3 && rep.avg >= 4.5) add('reviews', 4, 'you have strong reviews on other tasks', 'has strong reviews on other tasks');
+  if (sim && sim.count >= 3 && sim.avg >= 4.5) {
+    const v = { avg: fmt.rating(sim.avg), n: sim.count, cat: catName };
+    add('reviews', 12, tr('you have strong reviews on similar work ({avg} from {n} {cat} tasks)', v), tr('has strong reviews on similar work ({avg} from {n} {cat} tasks)', v));
+  } else if (sim && sim.count >= 1 && sim.avg >= 4) add('reviews', 7, tr('you have good reviews on similar work'), tr('has good reviews on similar work'));
+  else if (rep.count >= 3 && rep.avg >= 4.5) add('reviews', 4, tr('you have strong reviews on other tasks'), tr('has strong reviews on other tasks'));
 
   // 6. Reliable completion record (only counts when there is enough history; never negative)
   const rel = reliability(p);
-  if (rel && rel.rate >= 0.9) add('reliability', 6, 'you have a dependable completion record', `has a dependable completion record (${rel.completed} of ${rel.accepted} accepted tasks completed)`);
+  if (rel && rel.rate >= 0.9) add('reliability', 6, tr('you have a dependable completion record'), tr('has a dependable completion record ({done} of {accepted} accepted tasks completed)', { done: rel.completed, accepted: rel.accepted }));
 
   // 7. Relevant proof
   const relevant = proofs.filter((pr) => cat.proofKeywords?.some((k) => pr.label.toLowerCase().includes(k)) && pr.status !== 'rejected');
   if (relevant.length) {
     const best = relevant.sort((a, b) => PROOF_WEIGHT[b.status] - PROOF_WEIGHT[a.status])[0];
-    add('proof', Math.round(8 * PROOF_WEIGHT[best.status]), `your proof “${best.label}” is relevant (${PROOF_NOTE[best.status]})`, `has relevant proof: “${best.label}”, ${PROOF_NOTE[best.status]}`);
+    const v = { label: best.label, note: proofNote(best.status) };
+    add('proof', Math.round(8 * PROOF_WEIGHT[best.status]), tr('your proof “{label}” is relevant ({note})', v), tr('has relevant proof: “{label}”, {note}', v));
   }
 
   // 8. Budget fits the tasker's usual rate
   if (task.estimatedHours && p.rateMin) {
     const hourly = task.budgetMax / task.estimatedHours;
-    if (hourly >= p.rateMin) add('budget', 5, 'the budget fits your usual rate', 'usually charges within this budget');
-    else caveats.push(you ? `The budget works out below your usual minimum of ${fmt.money0(p.rateMin)}/h.` : `${name}’s usual minimum is ${fmt.money0(p.rateMin)}/h.`);
+    if (hourly >= p.rateMin) add('budget', 5, tr('the budget fits your usual rate'), tr('usually charges within this budget'));
+    else caveats.push(you ? tr('The budget works out below your usual minimum of {rate}/h.', { rate: fmt.money0(p.rateMin) }) : tr('{name}’s usual minimum is {rate}/h.', { name, rate: fmt.money0(p.rateMin) }));
   }
 
   // 9. Newcomer exposure: an empty history should not mean invisibility
   if ((p.completedTaskCount || 0) < APP.newcomerThreshold) {
-    add('newcomer', 8, 'you are new here (new taskers get a fair start)', 'is new here (newcomers get a fair start, so check the profile and proof)');
+    add('newcomer', 8, tr('you are new here (new taskers get a fair start)'), tr('is new here (newcomers get a fair start, so check the profile and proof)'));
   }
 
   return finish(factors, caveats, {
     you,
     name,
-    lowText: you ? 'Shown because it matches your filters. It is not a close match for your profile yet.' : `Shown because ${name} applied. The profile is not a close match for this task.`,
+    lowText: you ? tr('Shown because it matches your filters. It is not a close match for your profile yet.') : tr('Shown because {name} applied. The profile is not a close match for this task.', { name }),
     maxLevel,
   });
 }

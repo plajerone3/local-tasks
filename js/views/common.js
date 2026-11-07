@@ -9,7 +9,7 @@ import {
 } from '../select.js';
 import { areaLabel, distanceKm, distanceLabel } from '../data/geo.js';
 import { category } from '../data/categories.js';
-import { fmt, t } from '../i18n.js';
+import { fmt, t, tr } from '../i18n.js';
 import { taskFit } from '../logic/matching.js';
 import { summarize } from '../logic/reputation.js';
 import { initials } from '../util.js';
@@ -129,15 +129,15 @@ const roleForGroup = (g, u) => ({ Client: 'client', Tasker: 'tasker', 'Client an
 
 export const homeFor = (role) => (role === 'moderator' ? '/moderation' : '/dashboard');
 
-export function reportButton(targetType, targetId, { label = 'Report', userId = null, cls = 'link-btn link-btn--muted' } = {}) {
+export function reportButton(targetType, targetId, { label = tr('Report'), userId = null, cls = 'link-btn link-btn--muted' } = {}) {
   return html`<button type="button" class="${cls}" data-action="open-report" data-type="${targetType}" data-id="${targetId}" data-user="${userId || ''}">${icon('flag', 16)}${label}</button>`;
 }
 
 export function blockButton(userId, { cls = 'link-btn link-btn--muted' } = {}) {
   const viewer = me();
   if (!viewer || viewer.id === userId) return '';
-  if (isBlocked(viewer.id, userId)) return html`<span class="small muted">${icon('ban', 16)} Blocked</span>`;
-  return html`<button type="button" class="${cls}" data-action="block-user" data-user="${userId}">${icon('ban', 16)}Block</button>`;
+  if (isBlocked(viewer.id, userId)) return html`<span class="small muted">${icon('ban', 16)} ${tr('Blocked')}</span>`;
+  return html`<button type="button" class="${cls}" data-action="block-user" data-user="${userId}">${icon('ban', 16)}${tr('Block')}</button>`;
 }
 
 export function safetyLinks(targetType, targetId, userId) {
@@ -162,12 +162,12 @@ function reportForm(type, id, userId, v = {}) {
   const e = errorsFor('report');
   return html`<form data-form="report" novalidate class="stack">
     <input type="hidden" name="targetType" value="${type}"><input type="hidden" name="targetId" value="${id}"><input type="hidden" name="blockUserId" value="${userId || ''}">
-    <p class="muted">Reports go to a moderator. Content stays visible until a moderator decides, and the other person is not told who reported them.</p>
-    ${choices({ id: 'report-reason', name: 'reason', legend: 'What is the problem?', type: 'radio', options: REPORT_REASONS.map((r) => ({ value: r.id, label: r.label })), values: v.reason ? [v.reason] : [], error: e.reason, required: true, cls: 'choices--stack' })}
-    ${textarea({ id: 'report-details', name: 'details', label: 'What happened?', rows: 4, value: v.details || '', error: e.details, required: true, hint: 'Facts help the moderator most: what, when, and anything you have already tried.' })}
-    ${userId ? checkbox({ id: 'report-block', name: 'alsoBlock', label: 'Also block this person', checked: v.alsoBlock }) : ''}
-    ${notice({ tone: 'danger', body: html`If someone is in immediate danger, call <strong>112</strong> (EU emergency) or <strong>133</strong> (police) first.` })}
-    <div class="dialog__actions"><button type="button" class="btn btn--secondary" data-action="dialog-close">Cancel</button><button class="btn btn--primary" type="submit">Send report</button></div>
+    <p class="muted">${tr('Reports go to a moderator. Content stays visible until a moderator decides, and the other person is not told who reported them.')}</p>
+    ${choices({ id: 'report-reason', name: 'reason', legend: tr('What is the problem?'), type: 'radio', options: REPORT_REASONS.map((r) => ({ value: r.id, label: tr(r.label) })), values: v.reason ? [v.reason] : [], error: e.reason, required: true, cls: 'choices--stack' })}
+    ${textarea({ id: 'report-details', name: 'details', label: tr('What happened?'), rows: 4, value: v.details || '', error: e.details, required: true, hint: tr('Facts help the moderator most: what, when, and anything you have already tried.') })}
+    ${userId ? checkbox({ id: 'report-block', name: 'alsoBlock', label: tr('Also block this person'), checked: v.alsoBlock }) : ''}
+    ${notice({ tone: 'danger', body: tr('If someone is in immediate danger, call 112 (EU emergency) or 133 (police) first.') })}
+    <div class="dialog__actions"><button type="button" class="btn btn--secondary" data-action="dialog-close">${tr('Cancel')}</button><button class="btn btn--primary" type="submit">${tr('Send report')}</button></div>
   </form>`;
 }
 
@@ -183,16 +183,16 @@ export const actions = {
   'open-report'(el) {
     if (!me()) return go('/signin');
     clearErrors('report');
-    openDialog({ title: 'Report a problem', body: reportForm(el.dataset.type, el.dataset.id, el.dataset.user) });
+    openDialog({ title: tr('Report a problem'), body: reportForm(el.dataset.type, el.dataset.id, el.dataset.user) });
   },
   async 'block-user'(el) {
     const viewer = me();
     if (!viewer) return go('/signin');
     const u = userById(el.dataset.user);
-    const yes = await confirmDialog({ title: `Block ${publicName(u)}?`, body: html`<p>You will not see each other’s tasks, applications or messages. They are not told that you blocked them. You can unblock in the Safety center at any time.</p>`, confirmLabel: 'Block', tone: 'danger' });
+    const yes = await confirmDialog({ title: tr('Block {name}?', { name: publicName(u) }), body: html`<p>${tr('You will not see each other’s tasks, applications or messages. They are not told that you blocked them. You can unblock in the Safety center at any time.')}</p>`, confirmLabel: tr('Block'), tone: 'danger' });
     if (!yes) return;
     blockUser(viewer.id, u.id);
-    toast(`${publicName(u)} is blocked.`);
+    toast(tr('{name} is blocked.', { name: publicName(u) }));
   },
   'dialog-close'(el) {
     closeDialogOf(el);
@@ -213,6 +213,6 @@ export const forms = {
     }
     clearErrors('report');
     closeDialogs();
-    toast('Report sent. A moderator will review it. Nothing is removed automatically.');
+    toast(tr('Report sent. A moderator will review it. Nothing is removed automatically.'));
   },
 };

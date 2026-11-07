@@ -1,3 +1,5 @@
+import { getLang, tr } from '../i18n.js';
+
 // Location areas. Coordinates are rough district centres, used only to estimate
 // distance between areas. Exact addresses are never part of public data.
 
@@ -55,6 +57,9 @@ export const CITIES = [
 
 export const city = (id) => CITIES.find((c) => c.id === id);
 
+/** City name in the active language (Vienna / Wien). */
+export const cityName = (id) => { const c = city(id); return c ? (getLang() === 'de' ? c.local : c.label) : ''; };
+
 export function district(area) {
   return city(area?.city)?.districts.find((d) => d.id === area.district);
 }
@@ -62,9 +67,9 @@ export function district(area) {
 export function areaLabel(area, { withCode = true } = {}) {
   const c = city(area?.city);
   const d = district(area);
-  if (!c) return 'Unknown area';
-  if (!d) return c.label;
-  return `${c.label} · ${d.label}${withCode && d.code ? ` (${d.code})` : ''}`;
+  if (!c) return tr('Unknown area');
+  if (!d) return cityName(c.id);
+  return `${cityName(c.id)} · ${d.label}${withCode && d.code ? ` (${d.code})` : ''}`;
 }
 
 export const areaKey = (area) => (area ? `${area.city}:${area.district}` : '');
@@ -90,7 +95,7 @@ export function distanceKm(a, b) {
 
 export function distanceLabel(km) {
   if (km == null) return '';
-  if (km < 1) return 'under 1 km away';
-  if (km > 60) return `about ${Math.round(km / 10) * 10} km away`;
-  return `about ${Math.round(km)} km away`;
+  if (km < 1) return tr('under 1 km away');
+  if (km > 60) return tr('about {km} km away', { km: Math.round(km / 10) * 10 });
+  return tr('about {km} km away', { km: Math.round(km) });
 }

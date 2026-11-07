@@ -3,7 +3,7 @@ import { html, raw, attrs } from './html.js';
 import { icon } from './icons.js';
 import { category } from '../data/categories.js';
 import { CITIES, areaKey } from '../data/geo.js';
-import { fmt } from '../i18n.js';
+import { fmt, tr, trn } from '../i18n.js';
 import { initials, slug, WEEKDAYS, WEEKDAY_SHORT, WEEKDAY_LABEL, SLOTS } from '../util.js';
 import {
   TASK_STATUS, APPLICATION_STATUS, ASSIGNMENT_STATUS, PAYMENT_STATUS, PROOF_STATUS, CONNECTION_STATUS, REPORT_STATUS, TX_STATUS, DISPUTE_STATUS,
@@ -21,7 +21,7 @@ export function badge(text, tone = 'neutral', ic = null) {
 
 export function statusBadge(kind, status) {
   const m = STATUS_MAPS[kind]?.[status] || { label: status, tone: 'neutral' };
-  return html`<span class="badge badge--${m.tone} badge--status"><span class="badge__dot" aria-hidden="true"></span>${m.label}</span>`;
+  return html`<span class="badge badge--${m.tone} badge--status"><span class="badge__dot" aria-hidden="true"></span>${tr(m.label)}</span>`;
 }
 
 export const demoTag = (text = 'Demo') => html`<span class="badge badge--demo">${text}</span>`;
@@ -41,22 +41,22 @@ export function starIcons(value) {
   return raw(Array.from({ length: 5 }, (_, i) => `<span class="star${i < full ? ' star--on' : ''}" aria-hidden="true">★</span>`).join(''));
 }
 
-export function rating(summary, { compact = false, emptyText = 'No reviews yet' } = {}) {
+export function rating(summary, { compact = false, emptyText = tr('No reviews yet') } = {}) {
   if (!summary?.count) return html`<span class="rating rating--empty">${emptyText}</span>`;
-  const label = `Rated ${fmt.rating(summary.avg)} out of 5 from ${summary.count} ${summary.count === 1 ? 'review' : 'reviews'}`;
+  const label = trn(summary.count, 'Rated {avg} out of 5 from {n} review', 'Rated {avg} out of 5 from {n} reviews', { avg: fmt.rating(summary.avg) });
   return html`<span class="rating" role="img" aria-label="${label}"><span class="stars">${starIcons(summary.avg)}</span><strong>${fmt.rating(summary.avg)}</strong>${compact ? '' : html`<span class="muted"> (${summary.count})</span>`}</span>`;
 }
 
 export function proofBadge(status) {
   const m = PROOF_STATUS[status] || PROOF_STATUS.self_reported;
-  return html`<span class="badge badge--${m.tone}" title="${m.hint}">${icon(status === 'verified' ? 'shieldcheck' : 'file', 14)}${m.label}</span>`;
+  return html`<span class="badge badge--${m.tone}" title="${tr(m.hint)}">${icon(status === 'verified' ? 'shieldcheck' : 'file', 14)}${tr(m.label)}</span>`;
 }
 
 export function proofItem(p, { showHint = true } = {}) {
   const m = PROOF_STATUS[p.status] || PROOF_STATUS.self_reported;
   return html`<li class="proof">
     <div class="proof__main">${icon('file')}<span class="proof__label">${p.label}</span></div>
-    <div class="proof__meta">${proofBadge(p.status)}${showHint ? html`<span class="small muted">${m.hint}</span>` : ''}</div>
+    <div class="proof__meta">${proofBadge(p.status)}${showHint ? html`<span class="small muted">${tr(m.hint)}</span>` : ''}</div>
   </li>`;
 }
 
@@ -141,7 +141,7 @@ export const stat = (label, value, hint) => html`<div class="stat"><span class="
 const describedBy = (id, hint, error) => [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || null;
 
 function labelEl(id, label, required, optional) {
-  return html`<label class="field__label" for="${id}">${label}${required ? html`<span class="req" aria-hidden="true"> *</span>` : ''}${optional ? html`<span class="field__optional"> (optional)</span>` : ''}</label>`;
+  return html`<label class="field__label" for="${id}">${label}${required ? html`<span class="req" aria-hidden="true"> *</span>` : ''}${optional ? html`<span class="field__optional"> (${tr('optional')})</span>` : ''}</label>`;
 }
 const hintEl = (id, hint) => (hint ? html`<p class="field__hint" id="${id}-hint">${hint}</p>` : '');
 const errorEl = (id, error) => (error ? html`<p class="field__error" id="${id}-error">${icon('alert', 16)}<span>${error}</span></p>` : '');
@@ -244,7 +244,7 @@ export function errorSummary(errors, prefix) {
   const entries = Object.entries(errors || {});
   if (!entries.length) return '';
   return html`<div class="error-summary" id="error-summary" tabindex="-1" role="alert" aria-labelledby="error-summary-title">
-    <p class="error-summary__title" id="error-summary-title">${entries.length === 1 ? 'Please check one thing' : `Please check ${entries.length} things`}</p>
+    <p class="error-summary__title" id="error-summary-title">${trn(entries.length, 'Please check one thing', 'Please check {n} things')}</p>
     <ul>${entries.map(([k, msg]) => html`<li><button type="button" class="link-btn" data-action="focus-field" data-target="${prefix}-${k}">${msg}</button></li>`)}</ul>
   </div>`;
 }

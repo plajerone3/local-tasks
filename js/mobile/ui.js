@@ -4,7 +4,7 @@ import { icon } from '../ui/icons.js';
 import { category } from '../data/categories.js';
 import { initials } from '../util.js';
 import { publicName, unreadMessages, assignmentsForUser, taskById, connectionsOfTasker } from '../select.js';
-import { fmt } from '../i18n.js';
+import { fmt, tr, trn } from '../i18n.js';
 
 // Eight-colour palette. Every category owns one colour, so a task is recognisable at a glance.
 export const HEX = {
@@ -33,14 +33,14 @@ export function mAvatar(user, size = 'md') {
   return html`<span class="m-av m-av--${size}" style="--av:${user.avatar?.color || '#121212'}" aria-hidden="true">${initials(label)}</span>`;
 }
 
-export function stars(avg, count, { empty = 'New here' } = {}) {
+export function stars(avg, count, { empty = tr('New here') } = {}) {
   if (!count) return html`<span class="m-stars m-stars--new">${icon('sparkle', 13)}${empty}</span>`;
-  return html`<span class="m-stars" aria-label="Rated ${fmt.rating(avg)} out of 5 from ${count} reviews"><span aria-hidden="true">★</span> ${fmt.rating(avg)} <span class="m-stars__n">(${count})</span></span>`;
+  return html`<span class="m-stars" aria-label="${trn(count, 'Rated {avg} out of 5 from {n} review', 'Rated {avg} out of 5 from {n} reviews', { avg: fmt.rating(avg) })}"><span aria-hidden="true">★</span> ${fmt.rating(avg)} <span class="m-stars__n">(${count})</span></span>`;
 }
 
 export function topbar({ title, back, actions, large = false }) {
   return html`<header class="m-top${large ? ' m-top--large' : ''}">
-    ${back ? html`<a class="m-iconbtn" href="#${back}" aria-label="Back">${icon('back', 22)}</a>` : html`<span class="m-top__spacer"></span>`}
+    ${back ? html`<a class="m-iconbtn" href="#${back}" aria-label="${tr('Back')}">${icon('back', 22)}</a>` : html`<span class="m-top__spacer"></span>`}
     ${title ? html`<h1 class="m-top__title" tabindex="-1">${title}</h1>` : ''}
     <span class="m-top__actions">${actions || ''}</span>
   </header>`;
@@ -59,9 +59,9 @@ export function tabbar(ctx) {
     ? [['/home', 'Home', 'home'], ['/activity', 'Activity', 'list', needsAttention(user, role)], ['/wallet', 'Earnings', 'wallet'], ['/inbox', 'Inbox', 'message', inbox], ['/account', 'Account', 'user', connectionsOfTasker(user.id).some((c) => c.status === 'pending')]]
     : [['/home', 'Home', 'home'], ['/activity', 'Activity', 'list', needsAttention(user, role)], ['/inbox', 'Inbox', 'message', inbox], ['/account', 'Account', 'user']];
   const active = (href) => ctx.path === href || (href !== '/home' && ctx.path.startsWith(href));
-  return html`<nav class="m-tabs" aria-label="Main">${items.map(([href, label, ic, badge]) => html`<a class="m-tab" href="#${href}" ${active(href) ? raw('aria-current="page"') : ''}>
-    <span class="m-tab__icon">${icon(ic, 22)}${badge ? html`<span class="m-tab__badge">${typeof badge === 'number' ? (badge > 9 ? '9+' : badge) : ''}<span class="visually-hidden"> (new)</span></span>` : ''}</span>
-    <span class="m-tab__label">${label}</span>
+  return html`<nav class="m-tabs" aria-label="${tr('Main')}">${items.map(([href, label, ic, badge]) => html`<a class="m-tab" href="#${href}" ${active(href) ? raw('aria-current="page"') : ''}>
+    <span class="m-tab__icon">${icon(ic, 22)}${badge ? html`<span class="m-tab__badge">${typeof badge === 'number' ? (badge > 9 ? '9+' : badge) : ''}<span class="visually-hidden"> (${tr('new')})</span></span>` : ''}</span>
+    <span class="m-tab__label">${tr(label)}</span>
   </a>`)}</nav>`;
 }
 
@@ -77,7 +77,7 @@ export function screen({ ctx, top, content, footer, tabs = true, cls = '' }) {
 
 export function section(title, body, { more, id } = {}) {
   return html`<section class="m-section" ${id ? attrs({ 'aria-labelledby': id }) : ''}>
-    <div class="m-section__head"><h2 class="m-h3" ${id ? attrs({ id }) : ''}>${title}</h2>${more ? html`<a class="m-more" href="#${more.href}">${more.label || 'See all'}${icon('chevron', 16)}</a>` : ''}</div>
+    <div class="m-section__head"><h2 class="m-h3" ${id ? attrs({ id }) : ''}>${title}</h2>${more ? html`<a class="m-more" href="#${more.href}">${more.label || tr('See all')}${icon('chevron', 16)}</a>` : ''}</div>
     ${body}
   </section>`;
 }

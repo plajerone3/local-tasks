@@ -1,6 +1,7 @@
 // Illustrated area map (SVG). Not a street map: districts are placed by their rough centres,
 // rivers and parks are stylised, and pins sit on the district, never on an address.
-import { city } from '../data/geo.js';
+import { city, cityName } from '../data/geo.js';
+import { tr, trn } from '../i18n.js';
 import { category } from '../data/categories.js';
 import { HEX, catColor } from './ui.js';
 import { esc } from '../ui/html.js';
@@ -130,8 +131,10 @@ export function cityMap({ cityId, pins = [], you = null, focus = null, center = 
       aspect = 'xMidYMid slice';
     }
   }
-  const name = city(cityId).label;
-  const aria = `Illustrated map of ${name}${pins.length ? ` with ${pins.length} ${pins.length === 1 ? 'task' : 'tasks'}` : ''}. Pins show the district only, not addresses.`;
+  const name = cityName(cityId);
+  const aria = pins.length
+    ? trn(pins.length, 'Illustrated map of {city} with {n} task. Pins show the district only, not addresses.', 'Illustrated map of {city} with {n} tasks. Pins show the district only, not addresses.', { city: name })
+    : tr('Illustrated map of {city}. Pins show the district only, not addresses.', { city: name });
 
   return `<svg class="m-map" viewBox="${viewBox}" preserveAspectRatio="${aspect}" role="img" aria-label="${esc(aria)}" focusable="false">
     <defs><pattern id="${id}-streets" width="30" height="30" patternUnits="userSpaceOnUse" patternTransform="rotate(16)"><path d="M0 15H30M15 0V30" stroke="#E9DDC7" stroke-width="2.5"/></pattern></defs>

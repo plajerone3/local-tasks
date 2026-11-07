@@ -7,7 +7,7 @@ import { ui, onUiChange } from '../ui/state.js';
 import { parseHash, matchRoute, setRerender } from '../router.js';
 import { toast } from '../ui/dialog.js';
 import { sleep } from '../util.js';
-import { t } from '../i18n.js';
+import { t, tr, setLanguage, savedLanguage } from '../i18n.js';
 import { initSimulation } from '../services/simulation.js';
 import { switchRole } from '../services/accounts.js';
 import { actions as webShellActions } from '../views/shell.js';
@@ -88,6 +88,21 @@ function restore(map) {
   });
 }
 
+// The preview frame around the phone lives in app.html; keep its text in the active language.
+let staticLang = null;
+function translateStatic() {
+  if (staticLang === document.documentElement.lang) return;
+  staticLang = document.documentElement.lang;
+  document.querySelectorAll('[data-tr]').forEach((el) => {
+    el.dataset.en ??= el.textContent;
+    el.textContent = tr(el.dataset.en);
+  });
+  document.querySelectorAll('[data-tr-label]').forEach((el) => {
+    el.dataset.enLabel ??= el.getAttribute('aria-label');
+    el.setAttribute('aria-label', tr(el.dataset.enLabel));
+  });
+}
+
 function render() {
   const { path, query } = parseHash();
   const matched = matchRoute(ROUTES, path);
@@ -99,7 +114,7 @@ function render() {
   if (route?.role && user?.roles.includes(route.role) && role !== route.role) {
     switchRole(route.role);
     role = route.role;
-    toast(`Switched to ${t(`role.${role}`)}.`, 'info');
+    toast(tr('Switched to {role}.', { role: t(`role.${role}`) }), 'info');
   }
 
   const ctx = { path, query, params: matched?.params || {}, user, role, ui };
@@ -116,12 +131,13 @@ function render() {
     out = view.render(ctx);
   } catch (err) {
     console.error(err);
-    out = '<div class="m-screen"><main class="m-main m-pad"><p class="m-note c-tomato" role="alert">Something went wrong on this screen. Your data is safe. Go back or reset the demo from Account.</p></main></div>';
+    out = `<div class="m-screen"><main class="m-main m-pad"><p class="m-note c-tomato" role="alert">${tr('Something went wrong on this screen. Your data is safe. Go back or reset the demo from Account.')}</p></main></div>`;
   }
   app.innerHTML = String(out);
   if (snapshot) restore(snapshot);
   ui.skipPreserve = false;
-  document.title = `${(view.title && view.title(ctx)) || 'App'} · ${APP.name}`;
+  document.title = `${(view.title && view.title(ctx)) || tr('App')} · ${APP.name}`;
+  translateStatic();
 
   const main = app.querySelector('.m-main');
   if (!same) {
@@ -162,7 +178,7 @@ document.addEventListener('click', async (e) => {
   const fn = registry.actions[el.dataset.action];
   if (!fn) { console.warn('No handler for', el.dataset.action); return; }
   e.preventDefault();
-  try { await fn(el, e); } catch (err) { console.error(err); toast('Something went wrong. Please try again.', 'danger'); }
+  try { await fn(el, e); } catch (err) { console.error(err); toast(tr('Something went wrong. Please try again.'), 'danger'); }
 });
 
 document.addEventListener('submit', async (e) => {
@@ -181,7 +197,7 @@ document.addEventListener('submit', async (e) => {
     await fn(form, data, null, btn);
   } catch (err) {
     console.error(err);
-    toast('Something went wrong. Please try again.', 'danger');
+    toast(tr('Something went wrong. Please try again.'), 'danger');
   } finally {
     delete form.dataset.pending;
     if (btn && document.contains(btn)) { btn.removeAttribute('aria-busy'); btn.disabled = false; }
@@ -211,6 +227,8 @@ document.querySelector('.skip-link')?.addEventListener('click', (e) => {
   document.getElementById('main')?.focus();
 });
 
+// The mobile app speaks German by default; Account → Sprache switches to English.
+setLanguage(savedLanguage('de'));
 loadState();
 const s = session.get();
 if (s && !userById(s.userId)) session.clear();

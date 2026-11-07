@@ -75,7 +75,9 @@ export function joinList(items, conj = 'and') {
   const list = items.filter(Boolean);
   if (list.length <= 1) return list[0] || '';
   if (list.length === 2) return `${list[0]} ${conj} ${list[1]}`;
-  return `${list.slice(0, -1).join(', ')}, ${conj} ${list.at(-1)}`;
+  // English uses a serial comma ("a, b, and c"); German does not ("a, b und c").
+  const serial = conj === 'und' || conj === 'oder' ? '' : ',';
+  return `${list.slice(0, -1).join(', ')}${serial} ${conj} ${list.at(-1)}`;
 }
 
 export const capitalize = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);

@@ -1,6 +1,7 @@
 // Native <dialog> wrapper (focus trap, Escape and inert background come for free), plus toasts.
 import { html } from './html.js';
 import { icon } from './icons.js';
+import { tr } from '../i18n.js';
 
 // Close and remove a dialog right away. We do not wait for the native `close` event:
 // it is queued and can be delayed (e.g. in background tabs), which would stall confirms.
@@ -22,7 +23,7 @@ export function openDialog({ title, body, footer, wide = false }) {
   d.setAttribute('aria-labelledby', 'dialog-title');
   d.innerHTML = String(html`<div class="dialog__inner">
     <div class="dialog__head"><h2 id="dialog-title" class="dialog__title">${title}</h2>
-      <button type="button" class="icon-btn" data-action="dialog-close" aria-label="Close">${icon('x')}</button></div>
+      <button type="button" class="icon-btn" data-action="dialog-close" aria-label="${tr('Close')}">${icon('x')}</button></div>
     <div class="dialog__body">${body}</div>
     ${footer ? html`<div class="dialog__foot">${footer}</div>` : ''}
   </div>`);
@@ -45,7 +46,7 @@ export function closeDialogOf(el) {
   if (d) dispose(d);
 }
 
-export function confirmDialog({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'primary' }) {
+export function confirmDialog({ title, body, confirmLabel = tr('Confirm'), cancelLabel = tr('Cancel'), tone = 'primary' }) {
   return new Promise((resolve) => {
     const d = openDialog({
       title, body,

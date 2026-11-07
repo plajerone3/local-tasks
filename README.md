@@ -47,6 +47,16 @@ a big rating screen. The look: bold black type and outlines on cream, with eight
 tomato, mint, sky, bubblegum, lavender, lime, cobalt), and one colour per task category.
 Code: `js/mobile/` and `css/mobile.css`. Business and moderator tools stay in the web app.
 
+**Language.** The mobile app speaks German by default (Austrian German, informal "du"), with a
+Deutsch/English switch under Konto → Sprache that is remembered per browser. Demo content is
+created in the language active when the demo is seeded; switching offers to reset it so tasks,
+profiles and chats match. The web app stays English. Both apps share one demo dataset, so the
+web app shows German demo content if the mobile app seeded it (reset the demo from either side
+to reseed). Translations: `js/locales/de.js` (UI, keyed by the English text passed to `tr()`),
+`de-seed.js` (demo content) and `de-content.js` (category skills and example tasks).
+`tests/mobile-de.test.mjs` renders every mobile screen in German and fails on any missing
+translation or leftover English.
+
 ## Fastest way to review
 
 Open **Guided demo** (`#/guide`). Each of its 10 steps signs you in as a seeded account and
@@ -102,9 +112,12 @@ js/store.js           persistence (replace with an API client)
 js/select.js          read-only queries
 js/ui/                html templating, components, dialogs, icons, UI state
 js/views/             one module per screen, named by user intent
+js/mobile/            phone app view (app.html): screens, map, UI helpers
+js/locales/           German translations (UI, demo content)
+js/i18n.js            tr()/trn(), language switch, number and date formats
 tests/                node:test suites
 docs/                 product brief and its build script — kept local, ignored by git
-.claude/launch.json   preview config for Claude Code (python3 http.server on 4180)
+.claude/launch.json   preview config for Claude Code (python3 serve.py on 4180)
 ```
 
 The product brief stays local (`docs/` is in `.gitignore`). To rebuild it after editing

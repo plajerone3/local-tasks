@@ -1,3 +1,6 @@
+import { getLang, tr } from '../i18n.js';
+import { EXAMPLES_DE, SKILLS_DE } from '../locales/de-content.js';
+
 // Task categories and their default availability policy.
 //   open   – anyone can post and apply
 //   review – tasks go to a moderator first; applications open after approval
@@ -141,3 +144,12 @@ export function category(id) {
 }
 
 export const defaultPolicy = (id) => category(id).policy;
+
+// Language-aware accessors for display. Matching and data keep using ids.
+export const catLabel = (id) => tr(category(id).label);
+/** Category name inside a sentence: lower-case in English ("gardening"), as-is in German ("Gartenarbeit"). */
+export const catWord = (id) => (getLang() === 'de' ? tr(category(id).label) : category(id).label.toLowerCase());
+export const catNote = (id) => (category(id).note ? tr(category(id).note) : '');
+export const catExample = (id) => (getLang() === 'de' ? EXAMPLES_DE[id] : null) || category(id).example || null;
+/** Skill names for a category in every language, so matching works on German and English profiles. */
+export const catSkills = (id) => [...(category(id).skills || []), ...(SKILLS_DE[id] || [])];

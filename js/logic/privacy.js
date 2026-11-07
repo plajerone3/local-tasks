@@ -1,4 +1,5 @@
 // Hides phone numbers and email addresses in free text until both sides agree to share.
+import { tr } from '../i18n.js';
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const PHONE = /(?:\+|00)?\d[\d\s\-/().]{6,}\d/g;
@@ -7,15 +8,16 @@ export const HIDDEN = '[contact details hidden]';
 
 export function maskContacts(text = '') {
   let masked = false;
+  const hidden = tr(HIDDEN);
   let out = String(text).replace(EMAIL, () => {
     masked = true;
-    return HIDDEN;
+    return hidden;
   });
   out = out.replace(PHONE, (m) => {
     const digits = m.replace(/\D/g, '');
     if (digits.length < 8 || DATEISH.test(m.trim())) return m;
     masked = true;
-    return HIDDEN;
+    return hidden;
   });
   return { text: out, masked };
 }

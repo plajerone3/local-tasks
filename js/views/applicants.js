@@ -58,7 +58,7 @@ function card(r, task) {
     ${rel ? html`<p class="small muted">${icon('check', 14)} Completed ${rel.completed} of ${rel.accepted} accepted tasks.</p>` : ''}
     <div class="applicant__actions">
       ${open ? html`<button type="button" class="btn btn--primary" data-action="accept-app" data-app="${a.id}">${icon('check')}Accept ${firstName(tasker)}</button>
-        <button type="button" class="btn btn--secondary" data-action="shortlist-app" data-app="${a.id}" aria-pressed="${a.status === 'shortlisted'}">${icon('bookmark')}${a.status === 'shortlisted' ? 'Shortlisted' : 'Shortlist'}</button>` : ''}
+        <button type="button" class="btn btn--secondary" data-action="shortlist-app" data-app="${a.id}" aria-pressed="${String(a.status === 'shortlisted')}">${icon('bookmark')}${a.status === 'shortlisted' ? 'Shortlisted' : 'Shortlist'}</button>` : ''}
       <button type="button" class="btn btn--secondary" data-action="message-applicant" data-task="${task.id}" data-user="${tasker.id}">${icon('message')}Message</button>
       <a class="btn btn--ghost" href="#/profile/${tasker.id}">Full profile</a>
       ${open ? html`<button type="button" class="btn btn--ghost" data-action="decline-app" data-app="${a.id}">Not this time</button>` : ''}

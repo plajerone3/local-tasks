@@ -6,7 +6,7 @@ import { userById, taskById, conversationById, taskerProfileOf, myApplication, f
 import { onHook } from './common.js';
 import { applyToTask, suggestedPrice } from './marketplace.js';
 import { sendMessage } from './messaging.js';
-import { fmt } from '../i18n.js';
+import { fmt, tr } from '../i18n.js';
 
 let enabled = APP.simulation;
 export const setSimulation = (on) => { enabled = on; };
@@ -44,9 +44,11 @@ export function initSimulation() {
       if (!task || task.status !== 'open' || myApplication(taskId, taskerId)) return;
       const p = taskerProfileOf(taskerId);
       applyToTask(taskId, taskerId, {
-        note: `Thanks for the invite! I have done similar tasks before${p?.skills?.length ? ` (${p.skills.slice(0, 2).join(', ').toLowerCase()})` : ''} and I am happy to help.`,
+        note: p?.skills?.length
+          ? tr('Thanks for the invite! I have done similar tasks before ({skills}) and I am happy to help.', { skills: p.skills.slice(0, 2).join(', ') })
+          : tr('Thanks for the invite! I have done similar tasks before and I am happy to help.'),
         proposedRate: suggestedPrice(task),
-        availability: `${fmt.date(task.date)}, ${fmt.window(task.timeWindow)} works for me`,
+        availability: tr('{date}, {time} works for me', { date: fmt.date(task.date), time: fmt.window(task.timeWindow) }),
         relevantSkills: (p?.skills || []).slice(0, 2),
       }, { simulated: true });
     }, 2200);
@@ -64,7 +66,7 @@ export function initSimulation() {
       ? (other.roles.includes('business') ? BUSINESS_LINES : CANDIDATE_LINES)
       : (taskById(conv.contextId)?.clientId === otherId ? CLIENT_LINES : TASKER_LINES);
     setTimeout(() => {
-      sendMessage(convId, otherId, pool[(replies[convId] - 1) % pool.length], { simulated: true });
+      sendMessage(convId, otherId, tr(pool[(replies[convId] - 1) % pool.length]), { simulated: true });
     }, 1800);
   });
 }

@@ -1,6 +1,7 @@
 // Reports, blocks, disputes and moderation.
 // Principle: a report never deletes or hides anything by itself. A moderator decides.
 // A dispute pauses ratings and payments so nobody is penalised automatically.
+import { tr } from '../i18n.js';
 import { update } from '../store.js';
 import { assignmentById, taskById, userById, firstName, disputeForAssignment, reportById, isBlocked, proofById } from '../select.js';
 import { uid, nowIso } from '../util.js';
@@ -34,7 +35,7 @@ export function createReport(reporterId, d) {
   const id = uid('rp');
   update((s) => {
     s.reports.unshift({ id, reporterId, targetType: d.targetType, targetId: d.targetId, reason: d.reason, details: d.details.trim(), status: 'pending_review', decision: null, createdAt: nowIso(), resolvedAt: null });
-    notifyModerators(s, `New report about a ${TARGET_LABEL[d.targetType] || 'item'}: ${d.reason}.`, '/moderation?tab=reports', reporterId);
+    notifyModerators(s, tr('New report about a {target}: {reason}.', { target: tr(TARGET_LABEL[d.targetType] || 'item'), reason: d.reason }), '/moderation?tab=reports', reporterId);
     audit(s, reporterId, 'report_created', id);
   });
   if (d.alsoBlock && d.blockUserId) blockUser(reporterId, d.blockUserId);
@@ -42,7 +43,7 @@ export function createReport(reporterId, d) {
 }
 
 export function blockUser(blockerId, blockedId) {
-  if (!blockedId || blockerId === blockedId) return fail({}, 'You cannot block yourself.');
+  if (!blockedId || blockerId === blockedId) return fail({}, tr('You cannot block yourself.'));
   if (isBlocked(blockerId, blockedId)) return ok();
   update((s) => { s.blocks.push({ blockerId, blockedId, createdAt: nowIso() }); });
   return ok();
@@ -56,8 +57,8 @@ export function unblockUser(blockerId, blockedId) {
 export function openDispute(asgId, userId, d) {
   const asg = assignmentById(asgId);
   const task = asg && taskById(asg.taskId);
-  if (!asg || (asg.taskerId !== userId && task.clientId !== userId)) return fail({}, 'Only the people on this task can open a dispute.');
-  if (!canMove('assignment', asg.status, 'disputed')) return fail({}, 'A dispute can only be opened on an active assignment.');
+  if (!asg || (asg.taskerId !== userId && task.clientId !== userId)) return fail({}, tr('Only the people on this task can open a dispute.'));
+  if (!canMove('assignment', asg.status, 'disputed')) return fail({}, tr('A dispute can only be opened on an active assignment.'));
   const errors = validateDispute(d);
   if (hasErrors(errors)) return fail(errors);
   const other = asg.taskerId === userId ? task.clientId : asg.taskerId;
@@ -69,8 +70,8 @@ export function openDispute(asgId, userId, d) {
     s.tasks.find((y) => y.id === task.id).status = 'disputed';
     for (const tx of s.walletTransactions.filter((t) => t.relatedTaskId === task.id && t.status === 'pending')) tx.status = 'on_hold';
     s.disputes.push({ id: uid('dp'), assignmentId: asgId, openedBy: userId, reason: d.reason, details: d.details.trim(), status: 'open', outcome: null, createdAt: nowIso(), resolvedAt: null });
-    notify(s, other, `${firstName(userById(userId))} opened a dispute on “${short(task.title)}”. Ratings and payments are paused while it is open.`, `/assignments/${asgId}`, userId);
-    notifyModerators(s, `Dispute opened on “${short(task.title)}”.`, '/moderation?tab=disputes', userId);
+    notify(s, other, tr('{name} opened a dispute on “{title}”. Ratings and payments are paused while it is open.', { name: firstName(userById(userId)), title: short(task.title) }), `/assignments/${asgId}`, userId);
+    notifyModerators(s, tr('Dispute opened on “{title}”.', { title: short(task.title) }), '/moderation?tab=disputes', userId);
   });
   return ok();
 }
@@ -80,9 +81,9 @@ export function openDispute(asgId, userId, d) {
 const isMod = (uid_) => userById(uid_)?.roles.includes('moderator');
 
 export function resolveReport(reportId, modId, decision, note = '') {
-  if (!isMod(modId)) return fail({}, 'Only moderators can do this.');
+  if (!isMod(modId)) return fail({}, tr('Only moderators can do this.'));
   const r = reportById(reportId);
-  if (!r) return fail({}, 'Report not found.');
+  if (!r) return fail({}, tr('Report not found.'));
   update((s) => {
     const x = s.reports.find((y) => y.id === reportId);
     x.status = 'resolved';
@@ -94,7 +95,7 @@ export function resolveReport(reportId, modId, decision, note = '') {
       const item = coll && s[coll].find((y) => y.id === x.targetId);
       if (item) item.hidden = true;
     }
-    notify(s, x.reporterId, `A moderator reviewed your report. Outcome: ${DECISION_LABEL[decision] || decision}.`, '/safety', modId);
+    notify(s, x.reporterId, tr('A moderator reviewed your report. Outcome: {outcome}.', { outcome: tr(DECISION_LABEL[decision] || decision) }), '/safety', modId);
     audit(s, modId, `report_${decision}`, reportId);
   });
   return ok();
@@ -103,28 +104,28 @@ export function resolveReport(reportId, modId, decision, note = '') {
 export const DECISION_LABEL = { no_action: 'no action needed', hidden: 'content hidden', warning: 'warning sent' };
 
 export function reviewProof(proofId, modId, decision) {
-  if (!isMod(modId)) return fail({}, 'Only moderators can do this.');
+  if (!isMod(modId)) return fail({}, tr('Only moderators can do this.'));
   const p = proofById(proofId);
-  if (!p) return fail({}, 'Proof not found.');
+  if (!p) return fail({}, tr('Proof not found.'));
   update((s) => {
     const x = s.proofItems.find((y) => y.id === proofId);
     x.status = decision === 'verified' ? 'verified' : 'rejected';
     x.reviewedAt = nowIso();
-    notify(s, x.taskerId, decision === 'verified' ? `A moderator checked “${x.label}” (demo check).` : `A moderator could not confirm “${x.label}”. You can upload a clearer copy.`, '/profile/edit', modId);
+    notify(s, x.taskerId, decision === 'verified' ? tr('A moderator checked “{label}” (demo check).', { label: x.label }) : tr('A moderator could not confirm “{label}”. You can upload a clearer copy.', { label: x.label }), '/profile/edit', modId);
     audit(s, modId, `proof_${x.status}`, proofId);
   });
   return ok();
 }
 
 export function reviewTask(taskId, modId, decision, note = '') {
-  if (!isMod(modId)) return fail({}, 'Only moderators can do this.');
+  if (!isMod(modId)) return fail({}, tr('Only moderators can do this.'));
   const t = taskById(taskId);
-  if (!t || t.status !== 'under_review') return fail({}, 'This task is not waiting for review.');
+  if (!t || t.status !== 'under_review') return fail({}, tr('This task is not waiting for review.'));
   update((s) => {
     const x = s.tasks.find((y) => y.id === taskId);
     move('task', x, decision === 'approve' ? 'open' : 'not_approved');
     x.reviewNote = note || null;
-    notify(s, x.clientId, decision === 'approve' ? `“${short(x.title)}” was approved and is now open for applications.` : `“${short(x.title)}” could not be approved. ${note}`.trim(), `/tasks/${taskId}`, modId);
+    notify(s, x.clientId, decision === 'approve' ? tr('“{title}” was approved and is now open for applications.', { title: short(x.title) }) : `${tr('“{title}” could not be approved.', { title: short(x.title) })} ${note}`.trim(), `/tasks/${taskId}`, modId);
     audit(s, modId, `task_${decision}`, taskId);
   });
   return ok();
@@ -132,10 +133,10 @@ export function reviewTask(taskId, modId, decision, note = '') {
 
 /** outcome: 'release' (pay tasker), 'refund' (refund client), 'resume' (continue the work) */
 export function resolveDispute(asgId, modId, outcome, note = '') {
-  if (!isMod(modId)) return fail({}, 'Only moderators can do this.');
+  if (!isMod(modId)) return fail({}, tr('Only moderators can do this.'));
   const d = disputeForAssignment(asgId);
   const asg = assignmentById(asgId);
-  if (!d || d.status !== 'open' || asg.status !== 'disputed') return fail({}, 'There is no open dispute here.');
+  if (!d || d.status !== 'open' || asg.status !== 'disputed') return fail({}, tr('There is no open dispute here.'));
   update((s) => {
     const dispute = s.disputes.find((y) => y.id === d.id);
     const x = s.assignments.find((y) => y.id === asgId);
@@ -165,16 +166,16 @@ export function resolveDispute(asgId, modId, outcome, note = '') {
       task.status = back === 'accepted' ? 'assigned' : back;
       txs.forEach((t) => { t.status = 'pending'; });
     }
-    const text = { release: 'the payment was released (demo)', refund: 'the payment was refunded (demo)', resume: 'the task continues' }[outcome];
-    for (const uid_ of [x.taskerId, task.clientId]) notify(s, uid_, `The dispute on “${short(task.title)}” was resolved: ${text}.`, `/assignments/${asgId}`, modId);
+    const text = tr({ release: 'the payment was released (demo)', refund: 'the payment was refunded (demo)', resume: 'the task continues' }[outcome]);
+    for (const uid_ of [x.taskerId, task.clientId]) notify(s, uid_, tr('The dispute on “{title}” was resolved: {outcome}.', { title: short(task.title), outcome: text }), `/assignments/${asgId}`, modId);
     audit(s, modId, `dispute_${outcome}`, d.id);
   });
   return ok();
 }
 
 export function setCategoryPolicy(catId, policy, modId) {
-  if (!isMod(modId)) return fail({}, 'Only moderators can do this.');
-  if (!['open', 'review', 'soon'].includes(policy)) return fail({}, 'Unknown policy.');
+  if (!isMod(modId)) return fail({}, tr('Only moderators can do this.'));
+  if (!['open', 'review', 'soon'].includes(policy)) return fail({}, tr('Unknown policy.'));
   update((s) => {
     s.categoryPolicy[catId] = policy;
     audit(s, modId, `category_${policy}`, catId);

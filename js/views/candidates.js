@@ -50,7 +50,7 @@ function candidateActions(bizId, tasker) {
   const conn = connectionBetween(bizId, tasker.id);
   const saved = isSaved(bizId, tasker.id);
   return html`<div class="row row--tight">
-    <button type="button" class="btn btn--ghost btn--sm" data-action="cand-save" data-user="${tasker.id}" aria-pressed="${saved}">${icon('bookmark', 16)}${saved ? 'Saved' : 'Save'}</button>
+    <button type="button" class="btn btn--ghost btn--sm" data-action="cand-save" data-user="${tasker.id}" aria-pressed="${String(saved)}">${icon('bookmark', 16)}${saved ? 'Saved' : 'Save'}</button>
     ${conn ? html`${statusBadge('connection', conn.status)}${conn.conversationId ? html`<a class="btn btn--secondary btn--sm" href="#/messages/${conn.conversationId}">Open chat</a>` : ''}`
       : html`<button type="button" class="btn btn--primary btn--sm" data-action="cand-connect" data-user="${tasker.id}">${icon('send', 16)}Connect</button>`}
   </div>`;

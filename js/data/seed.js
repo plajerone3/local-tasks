@@ -2,6 +2,8 @@
 // Every record follows the same shape a backend would return (see README data model).
 import { APP } from '../config.js';
 import { DAY_MS, isoDate, mulberry32, round2, WEEKDAYS } from '../util.js';
+import { getLang } from '../i18n.js';
+import { localizeSeed } from '../locales/de-seed.js';
 
 const AVATAR = ['#1E6B58', '#2557A7', '#8A4B14', '#7A3E8E', '#A3302A', '#33658A', '#56601A', '#8C2F5B', '#3F5E3A', '#6B4E16'];
 
@@ -84,6 +86,7 @@ export function createSeed(now = new Date()) {
   const s = {
     schemaVersion: APP.schemaVersion,
     seededAt: base.toISOString(),
+    seedLang: getLang(),
     users: [], taskerProfiles: [], businessProfiles: [], tasks: [], applications: [], assignments: [],
     conversations: [], messages: [], reviews: [], proofItems: [], walletTransactions: [],
     businessConnections: [], savedCandidates: [], reports: [], blocks: [], disputes: [],
@@ -438,5 +441,6 @@ export function createSeed(now = new Date()) {
   N('u_daniel', 'Your babysitting task is in manual review. We will let you know when it is live.', '/tasks/t_babysit', ago(0, 9));
   N('u_tobias', 'Martin has not confirmed yet. The payment stays reserved (demo) until then.', '/assignments/as_wardrobe', ago(0, 17));
 
+  if (s.seedLang === 'de') localizeSeed(s);
   return s;
 }
