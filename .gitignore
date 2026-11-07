@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Node (no dependencies today, but keep it out if any are added)
+node_modules/
+
+# Local-only Claude Code settings (launch.json is kept — it drives the preview)
+.claude/settings.local.json

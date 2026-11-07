@@ -1,0 +1,9 @@
+{
+  "name": "local-task-marketplace-prototype",
+  "private": true,
+  "type": "module",
+  "description": "Static prototype. No build step and no dependencies; package.json only exists so `npm test` can run the logic tests.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}
