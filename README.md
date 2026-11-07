@@ -44,7 +44,8 @@ after common ride-hailing patterns (not their branding): a "Describe a task" sea
 colourful service tiles, a map-first tasker home with an "available" switch, a step-by-step
 post flow ending on a confirm screen, a "Choose your tasker" offer list, live job tracking, and
 a big rating screen. The look: bold black type and outlines on cream, with eight colours (sun,
-tomato, mint, sky, bubblegum, lavender, lime, cobalt), and one colour per task category.
+tomato, mint, sky, bubblegum, lavender, lime, cobalt), and one colour per task category. The web app
+uses the same tokens (`css/app.css` `:root`), so both look like one product.
 Code: `js/mobile/` and `css/mobile.css`. Business and moderator tools stay in the web app.
 
 **Language.** The mobile app speaks German by default (Austrian German, informal "du"), with a

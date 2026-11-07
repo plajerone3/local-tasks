@@ -23,7 +23,7 @@ export const welcome = {
       <h1 class="m-welcome__title" tabindex="-1">${tr('Get help.')}<br>${tr('Get paid.')}<br>${tr('Get seen.')}</h1>
       <p class="m-welcome__lead">${tr('Small local jobs with honest prices, explained recommendations and reviews that belong to you.')}</p>
       <div class="m-stack">
-        <button type="button" class="m-btn m-btn--primary m-btn--block" data-action="m-open-accounts">Get started${icon('chevron', 18)}</button>
+        <button type="button" class="m-btn m-btn--primary m-btn--block" data-action="m-open-accounts">${tr('Get started')}${icon('chevron', 18)}</button>
         <a class="m-btn m-btn--ghost m-btn--block" href="index.html#/signup">${tr('Create an account in the web app')}</a>
       </div>
       <p class="m-fine">${tr('Demo prototype. No real payments, background or identity checks.')}</p>

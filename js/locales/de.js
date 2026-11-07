@@ -188,6 +188,7 @@ export default {
 
   // ── Welcome, demo accounts, other roles ─────────────────────────────────────
   "Welcome": "Willkommen",
+  "Get started": "Los geht’s",
   "Vienna · Graz · Linz": "Wien · Graz · Linz",
   "Get help.": "Hilfe finden.",
   "Get paid.": "Geld verdienen.",

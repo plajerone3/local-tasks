@@ -17,7 +17,7 @@ import * as account from '../js/mobile/screens/account.js';
 const ctx = (path, params = {}, query = {}) => ({ path, params, query, user: me(), role: myRole(), ui });
 
 // English words that should never appear in the German UI. Proper nouns are removed first.
-const ENGLISH = /\b(the|and|you|your|with|for|this|that|are|is|of|to|from|not|will|can|have|has|what|when|how|here|offer|offers|task|tasks|review|reviews|rated|back|done|available|open|share|send|choose|switch|account|activity|earnings|inbox|home|safety|profile|help|new|see|all|no|yet)\b/i;
+const ENGLISH = /\b(the|and|you|your|with|for|this|that|are|is|of|to|from|not|will|can|have|has|what|when|how|here|offer|offers|task|tasks|review|reviews|rated|back|done|available|open|share|send|choose|switch|account|activity|earnings|inbox|home|safety|profile|help|new|see|all|no|yet|get|started|sign|create|submit|save|edit|delete|close|cancel|continue|next|skip|loading|more|week|today|tomorrow|nearby)\b/i;
 const PROPER = /Local Tasks|GrünRaum Gartenbau GmbH|ClearSpace Reinigung GmbH|Donau Capital Partners AG|Quick Cash Jobs|CFA Level I|Microsoft-Excel-Expert-Zertifikat|WhatsApp|IKEA|PAX|BILLY|Telefonseelsorge|quickcash@example\.com/g;
 
 function visibleText(html) {
@@ -104,4 +104,22 @@ test('German lists join without a serial comma', async () => {
   const { joinList } = await import('../js/util.js');
   assert.equal(joinList(['a', 'b', 'c'], 'und'), 'a, b und c');
   assert.equal(joinList(['a', 'b', 'c']), 'a, b, and c');
+});
+
+test('mobile templates have no hard-coded visible text outside tr()', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('../js/mobile/', import.meta.url);
+  const files = ['main.js', 'ui.js', 'map.js', ...readdirSync(new URL('screens/', dir)).map((f) => `screens/${f}`)];
+  const found = [];
+  for (const f of files) {
+    readFileSync(new URL(f, dir), 'utf8').split('\n').forEach((line, i) => {
+      if (/^\s*(\/\/|\*)/.test(line)) return;
+      for (const m of line.matchAll(/>([^<>${}`]*[A-Za-z]{2,}[^<>${}`]*)(?=<|\$\{)/g)) {
+        const text = m[1].trim();
+        if (text && !/^[\s·•–—\-|,.:;()/+×€%0-9]*$/.test(text)) found.push(`${f}:${i + 1} ${text}`);
+      }
+      for (const m of line.matchAll(/(aria-label|placeholder|title|alt)="([^"$]*[A-Za-z]{2,}[^"$]*)"/g)) found.push(`${f}:${i + 1} ${m[0]}`);
+    });
+  }
+  assert.deepEqual(found, []);
 });

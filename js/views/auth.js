@@ -31,7 +31,7 @@ export const signin = {
           ${errorSummary(e, 'signin')}
           ${input({ id: 'signin-email', name: 'email', label: 'Email', type: 'email', autocomplete: 'email', error: e.email, required: true })}
           <input type="hidden" name="next" value="${ctx.query.next || ''}">
-          <div class="row"><button class="btn btn--primary" type="submit">Sign in</button><a href="#/signup">Create an account instead</a></div>
+          <div class="row row--submit"><button class="btn btn--primary" type="submit">Sign in</button><a href="#/signup">Create an account instead</a></div>
         </form>
       </section>
     </div>`;
@@ -51,7 +51,7 @@ export const signup = {
         ${input({ id: 'signup-email', name: 'email', label: 'Email', type: 'email', autocomplete: 'email', error: e.email, required: true, hint: 'Never shown to other people.' })}
         ${choices({ id: 'signup-roles', name: 'roles', legend: 'What would you like to do?', options: ROLE_OPTIONS, values: preset, error: e.roles, required: true, hint: 'Choose Client, Tasker or both. Business accounts are for organisations.', cls: 'choices--stack' })}
         ${checkbox({ id: 'signup-agree', name: 'agree', label: 'I have read the community guidelines: be honest, respectful and safe, and keep payments and contact in the app.', error: e.agree })}
-        <div class="row"><button class="btn btn--primary" type="submit">Create account</button><a href="#/signin">I already have an account</a></div>
+        <div class="row row--submit"><button class="btn btn--primary" type="submit">Create account</button><a href="#/signin">I already have an account</a></div>
         <p class="small muted">Demo: your account is stored only in this browser. No email is sent.</p>
       </form>
     </div>`;

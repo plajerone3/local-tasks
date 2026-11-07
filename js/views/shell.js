@@ -86,7 +86,7 @@ export function shell(ctx, content) {
   ${storageAvailable() ? '' : html`<div class="wrap">${notice({ tone: 'warn', title: 'Changes cannot be saved in this browser', body: 'Browser storage is unavailable (for example in a private window). Everything works, but changes are lost when you close the tab.' })}</div>`}
   <header class="topbar">
     <div class="wrap topbar__inner">
-      <a class="brand" href="#${u ? homeFor(ctx.role) : '/'}"><span class="brand__mark" aria-hidden="true">${icon('home', 18)}</span><span class="brand__name">${APP.name}</span><span class="visually-hidden"> — home</span></a>
+      <a class="brand" href="#${u ? homeFor(ctx.role) : '/'}"><img class="brand__mark" src="icon.svg" alt="" width="38" height="38"><span class="brand__name">${APP.name}</span><span class="visually-hidden"> — home</span></a>
       ${u ? html`<nav class="topnav" aria-label="Main">${navLinks(ctx, items, 'topnav__link')}</nav>`
         : html`<nav class="topnav topnav--public" aria-label="Main">${PUBLIC_NAV.map(([href, label]) => html`<a class="topnav__link" href="#${href}" ${isActive(href, ctx.path) && href !== '/welcome?s=how' && href !== '/welcome?s=business' ? raw('aria-current="page"') : ''}><span class="topnav__link__label">${label}</span></a>`)}</nav>`}
       <div class="topbar__right">
