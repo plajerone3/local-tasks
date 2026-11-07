@@ -62,6 +62,7 @@ function accountMenu(ctx) {
       <div class="menu__section">
         <button type="button" class="menu__item" data-action="demo-switch">${icon('users')}Switch demo account</button>
         <a class="menu__item" href="#/guide">${icon('compass')}Guided demo</a>
+        <a class="menu__item" href="app.html#/home">${icon('phone')}Mobile app view</a>
         <button type="button" class="menu__item" data-action="sign-out">${icon('logout')}Sign out</button>
       </div>
     </div>
@@ -107,7 +108,7 @@ export function shell(ctx, content) {
   <footer class="footer">
     <div class="wrap footer__inner">
       <div class="footer__brand"><strong>${APP.name}</strong><span class="muted"> — working title. A prototype for Vienna, Graz and Linz.</span></div>
-      <nav class="footer__nav" aria-label="Footer"><a href="#/tasks">Browse tasks</a><a href="#/welcome">About</a><a href="#/safety">Safety center</a><a href="#/guide">Guided demo</a></nav>
+      <nav class="footer__nav" aria-label="Footer"><a href="#/tasks">Browse tasks</a><a href="#/welcome">About</a><a href="#/safety">Safety center</a><a href="#/guide">Guided demo</a><a href="app.html">Mobile app view</a></nav>
       <p class="small muted footer__note">${t('demo.wallet')} The prototype does not perform background, identity, insurance or licence checks, and it does not guarantee income or employment.</p>
     </div>
   </footer>

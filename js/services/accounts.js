@@ -164,6 +164,15 @@ export function setDiscoverability(userId, on) {
   return saveOpportunity(userId, { seeking: on, consent: true, fields: p.employmentGoal?.fields || [], types, note: p.employmentGoal?.note || '' });
 }
 
+/** "Available now" switch on the mobile tasker home. Off hides new-task suggestions; nothing else changes. */
+export function setAvailableNow(userId, on) {
+  update((s) => {
+    const u = s.users.find((x) => x.id === userId);
+    if (u) u.availableNow = !!on;
+  });
+  return ok({ on: !!on });
+}
+
 export function finishOnboarding(userId, role) {
   update((s) => {
     const u = s.users.find((x) => x.id === userId);

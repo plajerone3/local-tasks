@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Local Tasks — mobile app</title>
+<meta name="description" content="Mobile app view of the Local Task Marketplace prototype.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FFC933">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Local Tasks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/mobile.css">
+<script type="module" src="js/mobile/main.js"></script>
+</head>
+<body class="m-body">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="m-stage">
+  <aside class="m-aside" aria-label="About this preview">
+    <p class="m-aside__eyebrow">Mobile app view</p>
+    <h2 class="m-aside__title">Local Tasks, in your pocket.</h2>
+    <p>The same accounts and data as the web app, laid out like a native phone app. Open this page on a phone for the full-screen version.</p>
+    <ul class="m-aside__palette" aria-label="Colour palette">
+      <li class="c-sun">Sun</li><li class="c-tomato">Tomato</li><li class="c-mint">Mint</li><li class="c-sky">Sky</li>
+      <li class="c-bubble">Bubblegum</li><li class="c-lavender">Lavender</li><li class="c-lime">Lime</li><li class="c-cobalt">Cobalt</li>
+    </ul>
+    <p class="m-aside__links"><a href="index.html">Open the web app</a> · <a href="index.html#/guide">Guided demo</a></p>
+  </aside>
+  <div class="m-device">
+    <div class="m-statusbar" aria-hidden="true"><span>9:41</span><span class="m-statusbar__notch"></span><span>5G ▮▮▮</span></div>
+    <div id="app" class="m-app">
+      <noscript><p style="padding:24px">This app needs JavaScript.</p></noscript>
+      <div class="m-boot" aria-live="polite"><span class="m-boot__dot c-sun"></span><span class="m-boot__dot c-tomato"></span><span class="m-boot__dot c-mint"></span><span class="m-boot__dot c-sky"></span></div>
+    </div>
+  </div>
+</div>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<div id="sr-status" class="visually-hidden" aria-live="polite"></div>
+</body>
+</html>

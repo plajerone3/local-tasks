@@ -10,14 +10,20 @@ This folder is self-contained: every path is relative, and nothing outside it is
 
 ## Run it
 
-No build step and no dependencies. From this folder:
+No build step and no dependencies. Start the local server (works from any folder):
 
 ```bash
-python3 -m http.server 4180
+python3 ~/Claude/Projects/LOCALTASKS/serve.py
 ```
 
-Then open <http://localhost:4180/>. Opening `index.html` straight from disk will not work,
-because browsers block ES modules over `file://`.
+Then open:
+
+- **Web app:** <http://localhost:4180/>
+- **Mobile app view:** <http://localhost:4180/app.html>. On a computer it shows inside a phone frame; on a phone it fills the screen.
+
+`serve.py` is Python's built-in server with browser caching switched off, so changes show up on
+a normal reload. Opening `index.html` straight from disk will not work, because browsers block
+ES modules over `file://`.
 
 Tests (Node 20+; no packages to install), also from this folder:
 
@@ -25,9 +31,19 @@ Tests (Node 20+; no packages to install), also from this folder:
 npm test
 ```
 
-21 tests: logic (matching, statuses, validation, masking, fees), the end-to-end service
-flows, and a smoke test that renders every screen for every demo account and fails on
-`undefined`, `NaN` or forbidden promises like "guaranteed income".
+26 tests: logic (matching, statuses, validation, masking, fees), the end-to-end service
+flows, and smoke tests that render every web and mobile screen for every demo account and fail
+on `undefined`, `NaN` or forbidden promises like "guaranteed income".
+
+## Mobile app view
+
+`app.html` is a phone-app version of the same product, with the same accounts and data, laid out
+after common ride-hailing patterns (not their branding): a "Describe a task" search pill and
+colourful service tiles, a map-first tasker home with an "available" switch, a step-by-step
+post flow ending on a confirm screen, a "Choose your tasker" offer list, live job tracking, and
+a big rating screen. The look: bold black type and outlines on cream, with eight colours (sun,
+tomato, mint, sky, bubblegum, lavender, lime, cobalt), and one colour per task category.
+Code: `js/mobile/` and `css/mobile.css`. Business and moderator tools stay in the web app.
 
 ## Fastest way to review
 

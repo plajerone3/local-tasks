@@ -1,0 +1,13 @@
+{
+  "name": "Local Tasks",
+  "short_name": "Local Tasks",
+  "description": "Prototype: small local jobs in Vienna, Graz and Linz.",
+  "start_url": "app.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF7EA",
+  "theme_color": "#FFC933",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

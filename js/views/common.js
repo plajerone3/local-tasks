@@ -2,7 +2,7 @@
 import { html, raw } from '../ui/html.js';
 import { icon } from '../ui/icons.js';
 import { badge, statusBadge, catLabel, rating, fitBlock, fitBadge, input, textarea, choices, checkbox, notice } from '../ui/components.js';
-import { openDialog, closeDialogs, toast, confirmDialog } from '../ui/dialog.js';
+import { openDialog, closeDialogs, closeDialogOf, toast, confirmDialog } from '../ui/dialog.js';
 import {
   userById, publicName, taskerProfileOf, publicReviewsAbout, proofsOf, activeApplicationsForTask, pendingReportsOn, policyOf,
   demoAccounts, visibleTasks, myApplication, isBlocked, businessOf, me,
@@ -43,9 +43,11 @@ export function fitFor(task, taskerUser, perspective = 'tasker') {
   return taskFit({ task, tasker: taskerUser, profile, reviews: publicReviewsAbout(taskerUser.id), proofs: proofsOf(taskerUser.id), perspective });
 }
 
+// A task with a pending report stays visible in Browse (reports never hide content on their own),
+// but it is not actively recommended until a moderator has looked at it.
 export function recommendedTasks(user, limit = 4) {
   return visibleTasks(user)
-    .filter((t) => t.status === 'open' && t.clientId !== user.id && !t.hidden && !myApplication(t.id, user.id) && policyOf(t.category) !== 'soon')
+    .filter((t) => t.status === 'open' && t.clientId !== user.id && !t.hidden && !myApplication(t.id, user.id) && policyOf(t.category) !== 'soon' && !pendingReportsOn('task', t.id).length)
     .map((task) => ({ task, fit: fitFor(task, user) }))
     .filter((x) => x.fit && x.fit.level !== 'low')
     .sort((a, b) => b.fit.score - a.fit.score)
@@ -193,7 +195,7 @@ export const actions = {
     toast(`${publicName(u)} is blocked.`);
   },
   'dialog-close'(el) {
-    el.closest('dialog')?.close();
+    closeDialogOf(el);
   },
 };
 

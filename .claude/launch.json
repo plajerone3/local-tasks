@@ -4,7 +4,7 @@
     {
       "name": "local-tasks",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4180", "--bind", "127.0.0.1"],
+      "runtimeArgs": ["serve.py", "4180"],
       "port": 4180
     }
   ]

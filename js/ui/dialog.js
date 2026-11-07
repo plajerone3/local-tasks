@@ -2,12 +2,22 @@
 import { html } from './html.js';
 import { icon } from './icons.js';
 
-let opener = null;
+// Close and remove a dialog right away. We do not wait for the native `close` event:
+// it is queued and can be delayed (e.g. in background tabs), which would stall confirms.
+function dispose(d) {
+  if (d.dataset.disposed) return;
+  d.dataset.disposed = '1';
+  if (d.open) d.close();
+  d.remove();
+  d.dispatchEvent(new CustomEvent('dialog-done'));
+  const back = d._opener;
+  if (back && document.contains(back)) back.focus();
+}
 
 export function openDialog({ title, body, footer, wide = false }) {
   closeDialogs();
-  opener = document.activeElement;
   const d = document.createElement('dialog');
+  d._opener = document.activeElement;
   d.className = `dialog${wide ? ' dialog--wide' : ''}`;
   d.setAttribute('aria-labelledby', 'dialog-title');
   d.innerHTML = String(html`<div class="dialog__inner">
@@ -17,11 +27,8 @@ export function openDialog({ title, body, footer, wide = false }) {
     ${footer ? html`<div class="dialog__foot">${footer}</div>` : ''}
   </div>`);
   document.body.append(d);
-  d.addEventListener('close', () => {
-    d.remove();
-    if (opener && document.contains(opener)) opener.focus();
-  });
-  d.addEventListener('mousedown', (e) => { if (e.target === d) d.close(); });
+  d.addEventListener('close', () => dispose(d)); // Escape key
+  d.addEventListener('mousedown', (e) => { if (e.target === d) dispose(d); });
   d.showModal();
   const first = d.querySelector('[autofocus], .dialog__body input:not([type=hidden]), .dialog__body select, .dialog__body textarea');
   (first || d.querySelector('.dialog__foot .btn:last-child') || d).focus();
@@ -29,12 +36,17 @@ export function openDialog({ title, body, footer, wide = false }) {
 }
 
 export function closeDialogs() {
-  document.querySelectorAll('dialog.dialog').forEach((d) => (d.open ? d.close() : d.remove()));
+  document.querySelectorAll('dialog.dialog').forEach(dispose);
+}
+
+/** Close the dialog that contains `el` (used by the dialog's own close button). */
+export function closeDialogOf(el) {
+  const d = el.closest('dialog');
+  if (d) dispose(d);
 }
 
 export function confirmDialog({ title, body, confirmLabel = 'Confirm', cancelLabel = 'Cancel', tone = 'primary' }) {
   return new Promise((resolve) => {
-    let result = false;
     const d = openDialog({
       title, body,
       footer: html`<button type="button" class="btn btn--secondary" data-dlg="cancel">${cancelLabel}</button><button type="button" class="btn btn--${tone}" data-dlg="ok">${confirmLabel}</button>`,
@@ -42,10 +54,11 @@ export function confirmDialog({ title, body, confirmLabel = 'Confirm', cancelLab
     d.addEventListener('click', (e) => {
       const b = e.target.closest('[data-dlg]');
       if (!b) return;
-      result = b.dataset.dlg === 'ok';
-      d.close();
+      resolve(b.dataset.dlg === 'ok'); // resolve before dispose, which fires dialog-done
+      dispose(d);
     });
-    d.addEventListener('close', () => resolve(result), { once: true });
+    // Escape, backdrop or the X button: treat as "no". resolve() only counts the first call.
+    d.addEventListener('dialog-done', () => resolve(false), { once: true });
   });
 }
 

@@ -10,6 +10,7 @@ import * as safety from '../js/services/safety.js';
 import * as recruiting from '../js/services/recruiting.js';
 import * as messaging from '../js/services/messaging.js';
 import { setSimulation } from '../js/services/simulation.js';
+import { recommendedTasks } from '../js/views/common.js';
 import { summarize } from '../js/logic/reputation.js';
 import { isoDate } from '../js/util.js';
 
@@ -100,6 +101,9 @@ test('report creates pending moderation without deleting content', () => {
   assert.equal(S.pendingReportsOn('task', 't_event').length, 1);
   assert.ok(S.taskById('t_event'), 'content still exists');
   assert.equal(S.taskById('t_event').hidden, false);
+  assert.ok(S.visibleTasks(S.userById('u_tobias')).some((t) => t.id === 't_event'), 'still visible in browse');
+  assert.ok(!recommendedTasks(S.userById('u_tobias'), 20).some((x) => x.task.id === 't_event'), 'not recommended while under review');
+  assert.ok(!recommendedTasks(S.userById('u_mehmet'), 20).some((x) => x.task.id === 't_scam'), 'reported scam is not recommended');
 });
 
 test('dispute pauses payment and reviews; moderator resolves', () => {
