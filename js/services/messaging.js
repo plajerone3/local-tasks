@@ -7,7 +7,8 @@ import { conversationById, taskById, assignmentForTask, connectionById, findConv
 import { uid, nowIso } from '../util.js';
 import { maskContacts } from '../logic/privacy.js';
 import { validateMessage, hasErrors } from '../logic/validation.js';
-import { ok, fail, notify, short, emitHook } from './common.js';
+import { ok, fail, notify, short, emitHook, track, gate } from './common.js';
+import { scanText } from '../logic/flags.js';
 
 export function contactUnlocked(conv) {
   if (!conv) return false;
@@ -26,7 +27,10 @@ export function ensureTaskConversation(taskId, otherId) {
   const existing = findConversation('task', taskId, participants);
   if (existing) return ok({ id: existing.id });
   const id = uid('c');
-  update((s) => { s.conversations.push({ id, contextType: 'task', contextId: taskId, participantIds: participants, createdAt: nowIso() }); });
+  update((s) => {
+    s.conversations.push({ id, contextType: 'task', contextId: taskId, participantIds: participants, createdAt: nowIso() });
+    track(s, 'conversation_started', { actorId: otherId, targetType: 'conversation', targetId: id, meta: { taskId } });
+  });
   return ok({ id });
 }
 
@@ -35,12 +39,18 @@ export function sendMessage(convId, senderId, body, { simulated = false } = {}) 
   if (!conv || !conv.participantIds.includes(senderId)) return fail({}, tr('Conversation not found.'));
   const other = conv.participantIds.find((p) => p !== senderId);
   if (isBlocked(senderId, other)) return fail({}, tr('You cannot message this person because one of you has blocked the other.'));
+  const blocked = gate(senderId, 'message');
+  if (blocked) return blocked;
   const errors = validateMessage({ body });
   if (hasErrors(errors)) return fail(errors);
   const unlocked = contactUnlocked(conv);
   const { text, masked } = unlocked ? { text: body.trim(), masked: false } : maskContacts(body.trim());
+  const flags = scanText(body, getState().settings?.flags);
+  const msgId = uid('m');
   update((s) => {
-    s.messages.push({ id: uid('m'), conversationId: convId, senderId, body: text, createdAt: nowIso(), readBy: [senderId], system: false, masked, simulated, hidden: false });
+    s.messages.push({ id: msgId, conversationId: convId, senderId, body: text, createdAt: nowIso(), readBy: [senderId], system: false, masked, simulated, hidden: false, ...(flags.length ? { flags } : {}) });
+    track(s, 'message_sent', { actorId: senderId, targetType: 'conversation', targetId: convId, meta: { messageId: msgId, masked, ...(simulated ? { simulated: true } : {}) } });
+    if (flags.length) track(s, 'message_flagged', { targetType: 'conversation', targetId: convId, meta: { messageId: msgId, rules: flags.map((f) => f.rule) } });
     const context = conv.contextType === 'task' ? `“${short(taskById(conv.contextId)?.title || tr('a task'))}”` : tr('your recruiting conversation');
     notify(s, other, tr('New message from {name} about {context}.', { name: conv.contextType === 'recruiting' ? publicName(userById(senderId)) : firstName(userById(senderId)), context }), `/messages/${convId}`, senderId);
   });

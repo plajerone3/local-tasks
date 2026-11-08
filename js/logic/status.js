@@ -72,6 +72,16 @@ export const DISPUTE_STATUS = {
 export const VERIFICATION_STATUS = {
   not_started: { label: 'Identity not checked', tone: 'neutral' },
   pending_review: { label: 'ID check pending review', tone: 'warn' },
+  verified: { label: 'Identity checked (demo)', tone: 'success' },
+  rejected: { label: 'ID check not passed', tone: 'danger' },
+};
+
+/** Business details, as checked by staff in the backoffice. */
+export const BUSINESS_CHECK = {
+  not_started: { label: 'Business details not checked', tone: 'warn' },
+  pending_review: { label: 'Business details pending review', tone: 'warn' },
+  verified: { label: 'Business details checked (demo)', tone: 'success' },
+  rejected: { label: 'Business details not confirmed', tone: 'danger' },
 };
 
 const FLOWS = {

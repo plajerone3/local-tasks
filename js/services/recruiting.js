@@ -11,7 +11,7 @@ import { field as fieldById } from '../data/fields.js';
 import { uid, nowIso } from '../util.js';
 import { validateConnection, hasErrors } from '../logic/validation.js';
 import { move } from '../logic/status.js';
-import { ok, fail, notify } from './common.js';
+import { ok, fail, notify, track, gate } from './common.js';
 
 export const OUTCOMES = [
   { id: 'talking', label: 'We are talking' },
@@ -71,6 +71,7 @@ export function toggleSave(businessId, taskerId) {
   update((s) => {
     if (saved) s.savedCandidates = s.savedCandidates.filter((x) => !(x.businessId === businessId && x.taskerId === taskerId));
     else s.savedCandidates.push({ businessId, taskerId, createdAt: nowIso() });
+    track(s, saved ? 'candidate_unsaved' : 'candidate_saved', { actorId: businessId, targetType: 'user', targetId: taskerId });
   });
   return ok({ saved: !saved });
 }
@@ -81,6 +82,8 @@ export function sendConnection(businessId, taskerId, message) {
   const u = userById(taskerId);
   if (!isRecruitable(u, taskerProfileOf(taskerId))) return fail({}, tr('This person is not visible for stable work any more.'));
   if (isBlocked(businessId, taskerId)) return fail({}, tr('You cannot contact this person.'));
+  const blocked = gate(businessId, 'connect');
+  if (blocked) return blocked;
   const existing = connectionBetween(businessId, taskerId);
   if (existing && ['pending', 'accepted'].includes(existing.status)) return fail({}, tr('You already have a request or conversation with this person.'));
   const errors = validateConnection({ message });
@@ -88,6 +91,7 @@ export function sendConnection(businessId, taskerId, message) {
   const id = uid('bc');
   update((s) => {
     s.businessConnections.push({ id, businessId, taskerId, status: 'pending', message: message.trim(), createdAt: nowIso(), respondedAt: null, conversationId: null, outcome: null });
+    track(s, 'connection_sent', { actorId: businessId, targetType: 'connection', targetId: id, meta: { taskerId } });
     notify(s, taskerId, tr('{company} would like to connect about stable work.', { company: biz.companyName }), '/recruiting', businessId);
   });
   return ok({ id });
@@ -102,6 +106,7 @@ export function respondConnection(connId, taskerId, accept) {
     const x = s.businessConnections.find((y) => y.id === connId);
     move('connection', x, accept ? 'accepted' : 'declined');
     x.respondedAt = nowIso();
+    track(s, accept ? 'connection_accepted' : 'connection_declined', { actorId: taskerId, targetType: 'connection', targetId: connId, meta: { businessId: c.businessId } });
     const name = userById(taskerId).name.split(' ')[0];
     if (accept) {
       x.conversationId = convId;
@@ -119,13 +124,19 @@ export function respondConnection(connId, taskerId, accept) {
 export function setOutcome(connId, taskerId, outcome) {
   const c = connectionById(connId);
   if (!c || c.taskerId !== taskerId || c.status !== 'accepted') return fail({}, tr('Only the candidate can record the outcome of an accepted connection.'));
-  update((s) => { s.businessConnections.find((y) => y.id === connId).outcome = outcome; });
+  update((s) => {
+    s.businessConnections.find((y) => y.id === connId).outcome = outcome;
+    track(s, 'connection_outcome', { actorId: taskerId, targetType: 'connection', targetId: connId, meta: { outcome } });
+  });
   return ok();
 }
 
 export function withdrawConnection(connId, businessId) {
   const c = connectionById(connId);
   if (!c || c.businessId !== businessId || c.status !== 'pending') return fail({}, tr('This request can no longer be withdrawn.'));
-  update((s) => { move('connection', s.businessConnections.find((y) => y.id === connId), 'withdrawn'); });
+  update((s) => {
+    move('connection', s.businessConnections.find((y) => y.id === connId), 'withdrawn');
+    track(s, 'connection_withdrawn', { actorId: businessId, targetType: 'connection', targetId: connId });
+  });
   return ok();
 }

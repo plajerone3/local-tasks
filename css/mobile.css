@@ -574,3 +574,7 @@ a.m-row:hover, button.m-row:hover { background: var(--paper); }
 button.m-seg__item { border: 0; background: none; font: inherit; font-weight: 800; cursor: pointer; }
 .m-seg__item[aria-pressed="true"] { background: var(--ink); color: #FFF; }
 .m-seg--lang { margin-bottom: 8px; }
+
+/* Staff restriction notice, shown on every screen while it applies */
+.m-banner { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 16px; background: var(--sun-soft, #FFF1C4); border-bottom: 2px solid var(--ink, #121212); font-size: .86rem; font-weight: 650; color: var(--ink, #121212); }
+.m-banner .icon { flex: none; margin-top: 1px; }

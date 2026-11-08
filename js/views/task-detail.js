@@ -169,7 +169,7 @@ export default {
             <ul class="mini-list">
               <li><span>Tasks posted</span><span>${cs.posted}</span></li>
               <li><span>Rated by taskers</span><span>${cs.reviewCount ? `${fmt.rating(cs.avg)} ★ (${cs.reviewCount})` : 'No ratings yet'}</span></li>
-              <li><span>Identity</span><span>${client.verificationStatus === 'pending_review' ? 'Check pending review' : 'Not checked (demo)'}</span></li>
+              <li><span>Identity</span><span>${{ pending_review: 'Check pending review', verified: 'Checked by our team (demo)', rejected: 'Check not passed' }[client.verificationStatus] || 'Not checked (demo)'}</span></li>
             </ul>
           </section>
           ${user && !isOwner ? safetyLinks('task', task.id, client.id) : ''}

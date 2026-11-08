@@ -6,7 +6,7 @@ export const APP = Object.freeze({
   currency: 'EUR',
   storageKey: 'ltm.state.v1',
   sessionKey: 'ltm.session.v1',
-  schemaVersion: 5,         // bump to force a reseed when the data shape changes
+  schemaVersion: 6,         // bump to force a reseed when the data shape changes
 
   // Placeholder fees. Both are shown before anyone accepts. TODO: confirm the business model.
   fees: Object.freeze({ clientServiceRate: 0.05, taskerPlatformRate: 0.05 }),

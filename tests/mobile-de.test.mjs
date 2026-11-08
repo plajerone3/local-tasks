@@ -123,3 +123,24 @@ test('mobile templates have no hard-coded visible text outside tr()', async () =
   }
   assert.deepEqual(found, []);
 });
+
+test('staff decisions show up in German: paused screen, restriction banner, notifications', async () => {
+  const BO = await import('../js/services/backoffice.js');
+  setLanguage('de');
+  loadState();
+  resetDemo();
+  missing.clear();
+  assert.ok(BO.setStanding('st_mira', 'u_lukas', 'restricted', { reason: 'Mehrmals nicht erschienen.', days: 7 }).ok);
+  assert.ok(BO.setStanding('st_mira', 'u_eva', 'suspended', { reason: 'Zahlungsstreit wird geprüft.', days: 3 }).ok);
+  assert.ok(BO.decidePayout('st_lea', getState().walletTransactions.find((x) => x.type === 'earning' && x.status === 'completed').id, 'held', 'Bankdaten werden geprüft.').ok);
+  const lines = [];
+  session.set({ userId: 'u_lukas', role: 'tasker' });
+  lines.push(...visibleText(home.home.render(ctx('/home'))), ...visibleText(lists.notifications.render(ctx('/notifications'))));
+  assert.ok(lines.some((l) => l.includes('eingeschränkt')), 'the restriction banner is shown');
+  session.set({ userId: 'u_eva', role: 'client' });
+  lines.push(...visibleText(start.paused.render(ctx('/home'))), ...visibleText(lists.notifications.render(ctx('/notifications'))));
+  assert.ok(lines.some((l) => l.includes('gesperrt')), 'the paused screen is shown');
+  session.clear();
+  assert.deepEqual([...missing], [], 'every new string has a German translation');
+  assert.deepEqual(lines.filter((l) => ENGLISH.test(l)), [], 'no English leftovers');
+});

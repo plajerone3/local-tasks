@@ -756,3 +756,6 @@ a.row-item__title:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Staff restriction notice in the web app */
+.restricted-bar { padding-top: 14px; }

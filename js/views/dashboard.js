@@ -200,7 +200,7 @@ function businessDash({ user }) {
     <section class="card card--soft consent-box" aria-labelledby="consent-h">
       <h2 id="consent-h" class="card__title">${icon('shield')} Who you can see, and why</h2>
       <p>${t('recruiting.promise')} You only see people who switched this on themselves. You see recruiting-relevant information (skills, relevant proof, task history and reviews, availability and area), never their contact details, address or messages.</p>
-      <p class="small muted">Matches are based on evidence relevant to ${fieldDef ? fieldDef.label.toLowerCase() : 'your field'}, not on one overall score. Business details: ${b.verifiedStatus === 'pending_review' ? 'pending review' : 'not checked'} (demo).</p>
+      <p class="small muted">Matches are based on evidence relevant to ${fieldDef ? fieldDef.label.toLowerCase() : 'your field'}, not on one overall score. Business details: ${{ pending_review: 'pending review', verified: 'checked by our team', rejected: 'not confirmed' }[b.verifiedStatus] || 'not checked'} (demo).</p>
     </section>
     <div class="layout">
       <div class="stack-lg">

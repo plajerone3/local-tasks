@@ -6,6 +6,7 @@ import { notificationsOf, me } from '../select.js';
 import { update } from '../store.js';
 import { fmt, t } from '../i18n.js';
 import { go } from '../router.js';
+import { standing } from '../logic/enforcement.js';
 
 export const notifications = {
   title: () => 'Notifications',
@@ -24,6 +25,17 @@ export const notifications = {
       </li>`)}</ul>` : emptyState({ ic: 'bell', title: 'No notifications yet', body: 'Applications, messages and status changes show up here.' })}
       <p class="small muted">Email and push notifications are coming later. You can see the placeholder in Settings.</p>
     </div>`;
+  },
+};
+
+/** Shown instead of the app when staff suspended, banned or closed the signed-in account. */
+export const paused = {
+  title: () => 'Account paused',
+  render(ctx) {
+    const st = standing(ctx.user);
+    const e = ctx.user.enforcement || {};
+    const title = { suspended: 'Your account is suspended', banned: 'Your account has been closed', closed: 'This account is closed' }[st] || 'Your account is suspended';
+    return html`<div class="wrap page page--narrow">${notice({ tone: 'danger', title, body: html`${e.reason ? html`<p>Reason from our team: ${e.reason}</p>` : ''}${st === 'suspended' && e.until ? html`<p>You can use the app again from ${fmt.day(e.until)}.</p>` : ''}<p>If you think this is a mistake, contact support. Jobs that were already paid stay protected.</p>`, actions: html`<a class="btn btn--secondary btn--sm" href="#/safety">Safety and support</a><button type="button" class="btn btn--primary btn--sm" data-action="sign-out">Sign out</button>`, role: 'alert' })}</div>`;
   },
 };
 

@@ -110,6 +110,7 @@ export default {
     const body = { reports: reportsTab, proof: proofTab, tasks: tasksTab, disputes: disputesTab, categories: categoriesTab }[tab]();
     return html`<div class="wrap page">
       ${pageHead({ eyebrow: 'Safety team', title: 'Moderation', lead: 'Reports never remove content on their own; decisions are made here, by a person, and logged.' })}
+      ${notice({ tone: 'info', title: 'The full staff backoffice', body: 'This is the quick in-app console. The backoffice has every queue (flags, payouts, ID and business checks, data requests), user and task history, account restrictions, the audit log and settings.', actions: html`<a class="btn btn--primary btn--sm" href="admin.html" target="_blank" rel="noopener">Open the backoffice</a>` })}
       ${tabs([
         { id: 'reports', label: 'Reports', href: '/moderation?tab=reports', count: counts.reports },
         { id: 'proof', label: 'Proof review', href: '/moderation?tab=proof', count: counts.proof },

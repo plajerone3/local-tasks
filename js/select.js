@@ -139,4 +139,9 @@ export function clientSummary(uid) {
   return { posted: posted.length, completed: posted.filter((t) => t.status === 'completed').length, reviewCount: reviews.length, avg };
 }
 
+// ---------- Backoffice ----------
+export const staffList = () => st().staff || [];
+export const staffById = (id) => staffList().find((x) => x.id === id) || null;
+export const settings = () => st().settings || {};
+
 export const deletionRequestOf = (uid) => st().dataRequests.find((r) => r.userId === uid && r.type === 'deletion') || null;

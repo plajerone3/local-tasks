@@ -10,7 +10,7 @@ import { updateAccount, saveOpportunity, saveBusiness, exportMyData, requestDele
 import { opportunityFields, parseOpportunity } from './profile-forms.js';
 import { businessFields, parseBusiness } from './onboarding.js';
 import { toast, confirmDialog } from '../ui/dialog.js';
-import { PROOF_STATUS } from '../logic/status.js';
+import { PROOF_STATUS, VERIFICATION_STATUS } from '../logic/status.js';
 
 const VIS = [{ value: 'public', label: 'Everyone' }, { value: 'businesses', label: 'Businesses only' }, { value: 'private', label: 'Only me' }];
 
@@ -43,7 +43,7 @@ export default {
         ${input({ id: 'acc-phone', name: 'phone', label: 'Phone', type: 'tel', value: u.phone || '', optional: true, autocomplete: 'tel', hint: 'Private. Hidden from everyone by default; you can share it in a chat after a task is accepted.' })}
         ${areaSelect({ id: 'acc-area', value: u.locationArea, error: ea.area })}
         ${!isBiz ? choices({ id: 'acc-languages', name: 'languages', legend: 'Languages', options: LANGUAGES.map((l) => ({ value: l, label: l })), values: u.languages }) : ''}
-        <p class="small">${badge(u.verificationStatus === 'pending_review' ? 'ID check pending review' : 'Identity not checked', 'neutral', 'shield')} <span class="muted">Identity checks are not part of the prototype.</span></p>
+        <p class="small">${badge(VERIFICATION_STATUS[u.verificationStatus]?.label || 'Identity not checked', VERIFICATION_STATUS[u.verificationStatus]?.tone || 'neutral', 'shield')} <span class="muted">Identity checks are not part of the prototype.</span></p>
         <div class="form-actions"><button class="btn btn--primary" type="submit">Save account</button></div>
       </form>
 

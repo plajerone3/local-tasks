@@ -305,6 +305,11 @@ const T = {
   'Dispute opened on “Carry 30 boxes to a storage unit in Neubau”.': 'Streitfall eröffnet zu „30 Kartons in ein Lagerabteil in Neubau tragen“.',
   'Your babysitting task is in manual review. We will let you know when it is live.': 'Dein Babysitting-Auftrag wird manuell geprüft. Wir sagen dir Bescheid, sobald er online ist.',
   'Martin has not confirmed yet. The payment stays reserved (demo) until then.': 'Martin hat noch nicht bestätigt. Bis dahin bleibt die Zahlung reserviert (Demo).',
+
+  // Scam attempt and an older report (backoffice demo)
+  'Hi! Easy money, I pay cash every evening. Write me on WhatsApp [contact details hidden] and send a copy of your ID first.': 'Hi! Leicht verdientes Geld, ich zahle jeden Abend bar. Schreib mir auf WhatsApp [Kontaktdaten verborgen] und schick mir zuerst eine Kopie deines Ausweises.',
+  'Sorry, I do not send ID copies to strangers. I will keep everything in the app.': 'Sorry, ich schicke Fremden keine Ausweiskopien. Ich bleibe lieber in der App.',
+  'This account keeps posting job adverts that have nothing to do with small tasks.': 'Dieses Konto postet ständig Stellenanzeigen, die nichts mit kleinen Aufträgen zu tun haben.',
 };
 
 const L = (s) => (typeof s === 'string' && T[s] != null ? T[s] : s);

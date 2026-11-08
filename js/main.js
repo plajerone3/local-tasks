@@ -9,6 +9,7 @@ import { sleep } from './util.js';
 import { initSimulation } from './services/simulation.js';
 import { switchRole } from './services/accounts.js';
 import { t } from './i18n.js';
+import { canSignIn } from './logic/enforcement.js';
 
 import { shell, actions as shellActions } from './views/shell.js';
 import * as common from './views/common.js';
@@ -84,6 +85,7 @@ function scheduleRender() {
 }
 
 function guard(route, ctx) {
+  if (ctx.user && !canSignIn(ctx.user) && route.path !== '/safety') return misc.paused;
   if (route.public) return null;
   if (!ctx.user) return auth.signinGate;
   if (route.role && !ctx.user.roles.includes(route.role)) return misc.accessView(route.role, ctx.user);

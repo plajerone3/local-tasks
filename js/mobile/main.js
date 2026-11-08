@@ -20,6 +20,7 @@ import * as job from './screens/job.js';
 import * as lists from './screens/lists.js';
 import * as account from './screens/account.js';
 import { toMobile } from './ui.js';
+import { canSignIn } from '../logic/enforcement.js';
 
 const ROUTES = [
   { path: '/', view: start.welcome, public: true, homeIfAuthed: true },
@@ -67,6 +68,7 @@ function pickView(route, ctx) {
   if (!route) return start.welcome;
   if (route.public && !ctx.user) return route.view;
   if (!ctx.user) return start.welcome;
+  if (!canSignIn(ctx.user)) return route.path === '/safety' ? route.view : start.paused;
   if (!ctx.user.roles.some((r) => r === 'client' || r === 'tasker')) return route.path === '/safety' ? route.view : start.notForMobile;
   if (route.role && !ctx.user.roles.includes(route.role)) return start.needRole(route.role);
   return route.view;

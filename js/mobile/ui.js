@@ -5,6 +5,7 @@ import { category } from '../data/categories.js';
 import { initials } from '../util.js';
 import { publicName, unreadMessages, assignmentsForUser, taskById, connectionsOfTasker } from '../select.js';
 import { fmt, tr, trn } from '../i18n.js';
+import { standing } from '../logic/enforcement.js';
 
 // Eight-colour palette. Every category owns one colour, so a task is recognisable at a glance.
 export const HEX = {
@@ -66,9 +67,17 @@ export function tabbar(ctx) {
 }
 
 /** A full screen: optional top bar, scrolling main area, sticky footer, tab bar. */
+/** A staff restriction stays visible on every screen, with the reason from the team. */
+function restrictionBanner(user) {
+  if (!user || standing(user) !== 'restricted') return '';
+  const e = user.enforcement || {};
+  return html`<p class="m-banner" role="status">${icon('alert', 18)}<span>${e.until ? tr('Your account is restricted until {date}: {reason}', { date: fmt.day(e.until), reason: e.reason }) : tr('Your account is restricted: {reason}', { reason: e.reason })} ${tr('You can finish current jobs and chats, but not post, apply or send requests.')}</span></p>`;
+}
+
 export function screen({ ctx, top, content, footer, tabs = true, cls = '' }) {
   return html`<div class="m-screen ${cls}">
     ${top || ''}
+    ${restrictionBanner(ctx?.user)}
     <main class="m-main" id="main" tabindex="-1">${content}</main>
     ${footer ? html`<div class="m-footer">${footer}</div>` : ''}
     ${tabs && ctx?.user ? tabbar(ctx) : ''}

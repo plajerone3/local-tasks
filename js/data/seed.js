@@ -4,6 +4,7 @@ import { APP } from '../config.js';
 import { DAY_MS, isoDate, mulberry32, round2, WEEKDAYS } from '../util.js';
 import { getLang } from '../i18n.js';
 import { localizeSeed } from '../locales/de-seed.js';
+import { addBackoffice } from './backoffice-seed.js';
 
 const AVATAR = ['#1E6B58', '#2557A7', '#8A4B14', '#7A3E8E', '#A3302A', '#33658A', '#56601A', '#8C2F5B', '#3F5E3A', '#6B4E16'];
 
@@ -90,7 +91,7 @@ export function createSeed(now = new Date()) {
     users: [], taskerProfiles: [], businessProfiles: [], tasks: [], applications: [], assignments: [],
     conversations: [], messages: [], reviews: [], proofItems: [], walletTransactions: [],
     businessConnections: [], savedCandidates: [], reports: [], blocks: [], disputes: [],
-    notifications: [], dataRequests: [], categoryPolicy: {}, auditLog: [],
+    notifications: [], dataRequests: [], categoryPolicy: {}, activity: [],
   };
 
   let n = 0;
@@ -425,6 +426,14 @@ export function createSeed(now = new Date()) {
   );
 
   // ---------- Safety ----------
+  // The scam account also wrote to Lukas before he reported the task (contact details were masked on send).
+  C('c_scam_lukas', 'task', 't_scam', ['u_spam', 'u_lukas'], [
+    ['u_spam', 'Hi! Easy money, I pay cash every evening. Write me on WhatsApp [contact details hidden] and send a copy of your ID first.', ago(0, 6)],
+    ['u_lukas', 'Sorry, I do not send ID copies to strangers. I will keep everything in the app.', ago(0, 5)],
+  ]);
+  s.messages.find((m) => m.conversationId === 'c_scam_lukas' && m.senderId === 'u_spam').masked = true;
+  s.reports.push({ id: 'rp_spam_old', reporterId: 'u_ana', targetType: 'user', targetId: 'u_spam', reason: 'spam', details: 'This account keeps posting job adverts that have nothing to do with small tasks.', status: 'resolved', decision: 'warning', note: 'First warning: advertising outside the rules.', createdAt: ago(1, 2), resolvedAt: ago(0, 22), resolvedBy: 'st_mira' });
+  s.dataRequests.push({ id: 'dr_bg3', userId: 'u_bg3', type: 'deletion', status: 'received', createdAt: ago(5) });
   s.reports.push({ id: 'rp_scam', reporterId: 'u_lukas', targetType: 'task', targetId: 't_scam', reason: 'scam', details: 'Promises €500 a day and asks people to continue on WhatsApp and send ID copies. Looks like a scam.', status: 'pending_review', decision: null, createdAt: ago(0, 5), resolvedAt: null });
 
   // ---------- Notifications ----------
@@ -442,5 +451,6 @@ export function createSeed(now = new Date()) {
   N('u_tobias', 'Martin has not confirmed yet. The payment stays reserved (demo) until then.', '/assignments/as_wardrobe', ago(0, 17));
 
   if (s.seedLang === 'de') localizeSeed(s);
+  addBackoffice(s, { ago, id });
   return s;
 }

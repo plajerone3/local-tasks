@@ -2,7 +2,8 @@
 import { html, raw } from '../ui/html.js';
 import { icon } from '../ui/icons.js';
 import { APP } from '../config.js';
-import { t } from '../i18n.js';
+import { t, fmt } from '../i18n.js';
+import { standing } from '../logic/enforcement.js';
 import { unreadMessages, unreadNotifications, publicName, connectionsOfTasker } from '../select.js';
 import { personAvatar, demoAccountList, homeFor } from './common.js';
 import { openDialog, confirmDialog, toast } from '../ui/dialog.js';
@@ -104,11 +105,12 @@ export function shell(ctx, content) {
       </div>
     </div>
   </header>
+  ${ctx.user && standing(ctx.user) === 'restricted' ? html`<div class="wrap restricted-bar">${notice({ tone: 'warn', title: `Your account is restricted${ctx.user.enforcement?.until ? ` until ${fmt.day(ctx.user.enforcement.until)}` : ''}`, body: `${ctx.user.enforcement?.reason || ''} You can finish current jobs and chats, but you cannot post tasks, apply, invite, review or send requests. Contact support if you think this is a mistake.`, role: 'status' })}</div>` : ''}
   <main id="main" class="main" tabindex="-1">${content}</main>
   <footer class="footer">
     <div class="wrap footer__inner">
       <div class="footer__brand"><strong>${APP.name}</strong><span class="muted"> — working title. A prototype for Vienna, Graz and Linz.</span></div>
-      <nav class="footer__nav" aria-label="Footer"><a href="#/tasks">Browse tasks</a><a href="#/welcome">About</a><a href="#/safety">Safety center</a><a href="#/guide">Guided demo</a><a href="app.html">Mobile app view</a></nav>
+      <nav class="footer__nav" aria-label="Footer"><a href="#/tasks">Browse tasks</a><a href="#/welcome">About</a><a href="#/safety">Safety center</a><a href="#/guide">Guided demo</a><a href="app.html">Mobile app view</a><a href="admin.html">Staff backoffice</a></nav>
       <p class="small muted footer__note">${t('demo.wallet')} The prototype does not perform background, identity, insurance or licence checks, and it does not guarantee income or employment.</p>
     </div>
   </footer>

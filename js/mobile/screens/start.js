@@ -6,7 +6,8 @@ import { signInAs, signOut, switchRole } from '../../services/accounts.js';
 import { resetDemo } from '../../store.js';
 import { openDialog, closeDialogs, toast, confirmDialog } from '../../ui/dialog.js';
 import { go } from '../../router.js';
-import { t, tr } from '../../i18n.js';
+import { t, tr, fmt } from '../../i18n.js';
+import { standing } from '../../logic/enforcement.js';
 import { mAvatar, screen } from '../ui.js';
 
 const SHAPES = [
@@ -53,6 +54,26 @@ export const notForMobile = {
       <h1 class="m-h1" tabindex="-1">${tr('{label} lives in the web app', { label })}</h1>
       <p class="m-muted">${tr('The mobile app is for people who post tasks and people who do them. {name} is a {role} account.', { name: publicName(ctx.user), role: t(`role.${ctx.role}`) })}</p>
       <a class="m-btn m-btn--primary m-btn--block" href="index.html#/${ctx.role === 'moderator' ? 'moderation' : 'dashboard'}">${tr('Open the web app')}</a>
+      <button type="button" class="m-btn m-btn--ghost m-btn--block" data-action="m-open-accounts">${tr('Switch demo account')}</button>
+    </div>` });
+  },
+};
+
+/** Shown instead of the app when staff suspended, banned or closed the signed-in account. */
+export const paused = {
+  title: () => tr('Account paused'),
+  render(ctx) {
+    const st = standing(ctx.user);
+    const e = ctx.user.enforcement || {};
+    const title = { suspended: tr('Your account is suspended'), banned: tr('Your account has been closed'), closed: tr('This account is closed') }[st] || tr('Your account is suspended');
+    return screen({ ctx, tabs: false, content: html`<div class="m-pad m-center-col">
+      <span class="m-empty__art c-tomato" aria-hidden="true">⏸️</span>
+      <h1 class="m-h1" tabindex="-1">${title}</h1>
+      ${e.reason ? html`<p class="m-muted">${tr('Reason from our team: {reason}', { reason: e.reason })}</p>` : ''}
+      ${st === 'suspended' && e.until ? html`<p class="m-muted">${tr('You can use the app again from {date}.', { date: fmt.day(e.until) })}</p>` : ''}
+      <p class="m-muted">${tr('If you think this is a mistake, contact support. Jobs that were already paid stay protected.')}</p>
+      <a class="m-btn m-btn--secondary m-btn--block" href="#/safety">${tr('Safety and support')}</a>
+      <button type="button" class="m-btn m-btn--ghost m-btn--block" data-action="m-signout">${tr('Sign out')}</button>
       <button type="button" class="m-btn m-btn--ghost m-btn--block" data-action="m-open-accounts">${tr('Switch demo account')}</button>
     </div>` });
   },

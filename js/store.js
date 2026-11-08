@@ -100,3 +100,19 @@ export const session = {
     remove(APP.sessionKey);
   },
 };
+
+// Backoffice staff session: one per browser (localStorage), apart from the app session.
+// TODO(backend): staff SSO with 2FA, short sessions and IP allow-lists.
+const STAFF_KEY = 'ltm.staff.v1';
+export const staffSession = {
+  get() {
+    const raw = read(STAFF_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  },
+  set(value) {
+    if (value) write(STAFF_KEY, JSON.stringify(value));
+    else remove(STAFF_KEY);
+    emit();
+  },
+};

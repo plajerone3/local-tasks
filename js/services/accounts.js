@@ -9,7 +9,8 @@ import {
   validateSignup, validateTaskerAbout, validateTaskerWork, validateOpportunity, validateProof,
   validateClient, validateBusiness, validateAccount, hasErrors,
 } from '../logic/validation.js';
-import { ok, fail, notifyModerators, audit } from './common.js';
+import { ok, fail, notifyModerators, track, blockText } from './common.js';
+import { standing, canSignIn } from '../logic/enforcement.js';
 
 const COLORS = ['#1E6B58', '#2557A7', '#8A4B14', '#7A3E8E', '#A3302A', '#33658A', '#56601A', '#8C2F5B'];
 
@@ -46,6 +47,7 @@ export function signUp({ name, email, roles, agree }) {
         hiringIntent: { roles: '', types: [], openings: 1 }, verifiedStatus: 'not_started', recruitingEnabled: false, recruitingConsentAt: null, website: '',
       });
     }
+    track(s, 'account_created', { actorId: id, targetType: 'user', targetId: id, meta: { roles } });
   });
   // Taskers start in the tasker view because onboarding begins there.
   const role = roles.includes('tasker') ? 'tasker' : roles[0];
@@ -57,6 +59,8 @@ export function signIn(email) {
   const normalized = String(email || '').trim().toLowerCase();
   const u = getState().users.find((x) => x.email.toLowerCase() === normalized);
   if (!u) return fail({ email: tr('We could not find an account with that email. Check the spelling or create an account.') });
+  if (!canSignIn(u)) return fail({ email: blockText(standing(u)) });
+  update((s) => { track(s, 'signed_in', { actorId: u.id, targetType: 'user', targetId: u.id }); });
   session.set({ userId: u.id, role: u.roles[0] });
   return ok({ id: u.id, role: u.roles[0] });
 }
@@ -64,11 +68,15 @@ export function signIn(email) {
 export function signInAs(userId, role) {
   const u = userById(userId);
   if (!u) return fail({}, tr('That demo account no longer exists. Try resetting the demo.'));
+  if (!canSignIn(u)) return fail({}, blockText(standing(u)));
+  update((s) => { track(s, 'signed_in', { actorId: userId, targetType: 'user', targetId: userId, meta: { demoSwitch: true } }); });
   session.set({ userId, role: u.roles.includes(role) ? role : u.roles[0] });
   return ok({ role: u.roles.includes(role) ? role : u.roles[0] });
 }
 
 export function signOut() {
+  const current = session.get()?.userId;
+  if (current && userById(current)) update((s) => { track(s, 'signed_out', { actorId: current, targetType: 'user', targetId: current }); });
   session.clear();
   session.set(null);
 }
@@ -88,6 +96,7 @@ export function addRole(userId, role) {
     if (!u.roles.includes(role)) u.roles.push(role);
     u.onboarded = { ...u.onboarded, [role]: u.onboarded?.[role] ?? false };
     if (role === 'tasker' && !s.taskerProfiles.some((p) => p.userId === userId)) s.taskerProfiles.push(emptyTaskerProfile(userId));
+    track(s, 'role_added', { actorId: userId, targetType: 'user', targetId: userId, meta: { role } });
   });
   session.set({ userId, role });
   return ok();
@@ -105,6 +114,7 @@ export function updateAccount(userId, d) {
     u.phone = d.phone?.trim() || null;
     u.locationArea = parseAreaKey(d.area);
     if (d.languages) u.languages = d.languages;
+    track(s, 'account_updated', { actorId: userId, targetType: 'user', targetId: userId });
   });
   return ok();
 }
@@ -121,6 +131,7 @@ export function saveTaskerAbout(userId, d) {
     const p = s.taskerProfiles.find((x) => x.userId === userId);
     p.headline = d.headline.trim();
     p.bio = (d.bio || '').trim();
+    track(s, 'profile_updated', { actorId: userId, targetType: 'user', targetId: userId, meta: { part: 'about' } });
   });
   return ok();
 }
@@ -137,6 +148,7 @@ export function saveTaskerWork(userId, d) {
     p.rateMin = Number(d.rateMin);
     p.rateMax = Number(d.rateMax);
     p.availability = d.availability;
+    track(s, 'profile_updated', { actorId: userId, targetType: 'user', targetId: userId, meta: { part: 'work' } });
   });
   return ok();
 }
@@ -153,7 +165,7 @@ export function saveOpportunity(userId, d) {
       consentAt: d.seeking ? (wasOn ? p.employmentGoal.consentAt : nowIso()) : null,
     };
     u.discoverableToBusinesses = !!d.seeking;
-    audit(s, userId, d.seeking ? 'discoverability_on' : 'discoverability_off', userId);
+    if (wasOn !== !!d.seeking) track(s, d.seeking ? 'discoverability_on' : 'discoverability_off', { actorId: userId, targetType: 'user', targetId: userId });
   });
   return ok();
 }
@@ -170,6 +182,7 @@ export function setAvailableNow(userId, on) {
   update((s) => {
     const u = s.users.find((x) => x.id === userId);
     if (u) u.availableNow = !!on;
+    track(s, on ? 'available_on' : 'available_off', { actorId: userId, targetType: 'user', targetId: userId });
   });
   return ok({ on: !!on });
 }
@@ -178,6 +191,7 @@ export function finishOnboarding(userId, role) {
   update((s) => {
     const u = s.users.find((x) => x.id === userId);
     u.onboarded = { ...u.onboarded, [role]: true };
+    track(s, 'onboarding_finished', { actorId: userId, targetType: 'user', targetId: userId, meta: { role } });
   });
   return ok();
 }
@@ -187,9 +201,10 @@ export function addProof(userId, d) {
   if (hasErrors(errors)) return fail(errors);
   const id = uid('pr');
   update((s) => {
-    s.proofItems.push({ id, taskerId: userId, label: d.label.trim(), type: d.type, status: d.requestReview ? 'pending_review' : 'self_reported', visibility: d.visibility || 'public', fileName: d.fileName || null, createdAt: nowIso() });
+    s.proofItems.push({ id, taskerId: userId, label: d.label.trim(), type: d.type, status: d.requestReview ? 'pending_review' : 'self_reported', visibility: d.visibility || 'public', fileName: d.fileName || null, createdAt: nowIso(), reviewRequestedAt: d.requestReview ? nowIso() : null });
     s.taskerProfiles.find((p) => p.userId === userId)?.proofItems.push(id);
     if (d.requestReview) notifyModerators(s, tr('Proof waiting for review: “{label}”.', { label: d.label.trim() }), '/moderation?tab=proof', userId);
+    track(s, d.requestReview ? 'proof_review_requested' : 'proof_added', { actorId: userId, targetType: 'proof', targetId: id, meta: { label: d.label.trim() } });
   });
   return ok({ id });
 }
@@ -199,7 +214,9 @@ export function requestProofReview(userId, proofId) {
     const p = s.proofItems.find((x) => x.id === proofId && x.taskerId === userId);
     if (p && p.status === 'self_reported') {
       p.status = 'pending_review';
+      p.reviewRequestedAt = nowIso();
       notifyModerators(s, tr('Proof waiting for review: “{label}”.', { label: p.label }), '/moderation?tab=proof', userId);
+      track(s, 'proof_review_requested', { actorId: userId, targetType: 'proof', targetId: proofId, meta: { label: p.label } });
     }
   });
   return ok();
@@ -210,12 +227,15 @@ export function setProofVisibility(userId, proofId, visibility) {
   update((s) => {
     const p = s.proofItems.find((x) => x.id === proofId && x.taskerId === userId);
     if (p) p.visibility = visibility;
+    track(s, 'proof_visibility_changed', { actorId: userId, targetType: 'proof', targetId: proofId, meta: { visibility } });
   });
   return ok();
 }
 
 export function removeProof(userId, proofId) {
   update((s) => {
+    const gone = s.proofItems.find((x) => x.id === proofId && x.taskerId === userId);
+    if (gone) track(s, 'proof_removed', { actorId: userId, targetType: 'user', targetId: userId, meta: { label: gone.label } });
     s.proofItems = s.proofItems.filter((x) => !(x.id === proofId && x.taskerId === userId));
     const p = s.taskerProfiles.find((x) => x.userId === userId);
     if (p) p.proofItems = p.proofItems.filter((x) => x !== proofId);
@@ -233,6 +253,7 @@ export function saveClient(userId, d) {
     u.locationArea = parseAreaKey(d.area);
     u.clientNeeds = d.needs || [];
     u.onboarded = { ...u.onboarded, client: true };
+    track(s, 'profile_updated', { actorId: userId, targetType: 'user', targetId: userId, meta: { part: 'client' } });
   });
   return ok();
 }
@@ -243,6 +264,8 @@ export function saveBusiness(userId, d) {
   update((s) => {
     const b = s.businessProfiles.find((x) => x.userId === userId);
     const u = s.users.find((x) => x.id === userId);
+    if (b.verifiedStatus === 'not_started') track(s, 'business_check_requested', { actorId: userId, targetType: 'user', targetId: userId });
+    track(s, 'business_profile_saved', { actorId: userId, targetType: 'user', targetId: userId });
     Object.assign(b, {
       companyName: d.companyName.trim(), field: d.field, size: d.size, locationArea: parseAreaKey(d.area),
       description: d.description.trim(), website: (d.website || '').trim(),
@@ -250,6 +273,7 @@ export function saveBusiness(userId, d) {
       recruitingEnabled: !!d.recruitingEnabled,
       recruitingConsentAt: d.recruitingEnabled ? (b.recruitingConsentAt || nowIso()) : null,
       verifiedStatus: b.verifiedStatus === 'not_started' ? 'pending_review' : b.verifiedStatus,
+      verificationRequestedAt: b.verifiedStatus === 'not_started' ? nowIso() : b.verificationRequestedAt || null,
     });
     u.locationArea = b.locationArea;
     u.onboarded = { ...u.onboarded, business: true };
@@ -265,6 +289,7 @@ export function enableRecruiting(userId, consent) {
     const x = s.businessProfiles.find((p) => p.userId === userId);
     x.recruitingEnabled = true;
     x.recruitingConsentAt = nowIso();
+    track(s, 'recruiting_on', { actorId: userId, targetType: 'user', targetId: userId });
   });
   return ok();
 }
@@ -274,6 +299,7 @@ export function setRecruiting(userId, on) {
     const x = s.businessProfiles.find((p) => p.userId === userId);
     x.recruitingEnabled = on;
     x.recruitingConsentAt = on ? (x.recruitingConsentAt || nowIso()) : null;
+    track(s, on ? 'recruiting_on' : 'recruiting_off', { actorId: userId, targetType: 'user', targetId: userId });
   });
   return ok();
 }
@@ -281,6 +307,7 @@ export function setRecruiting(userId, on) {
 // ---------- Privacy ----------
 
 export function exportMyData(userId) {
+  update((x) => { track(x, 'data_exported', { actorId: userId, targetType: 'user', targetId: userId }); });
   const s = getState();
   const mine = (arr, key) => arr.filter((x) => x[key] === userId);
   return {
@@ -295,7 +322,9 @@ export function exportMyData(userId) {
 export function requestDeletion(userId) {
   update((s) => {
     if (!s.dataRequests.some((r) => r.userId === userId && r.type === 'deletion' && r.status === 'received')) {
-      s.dataRequests.push({ id: uid('dr'), userId, type: 'deletion', status: 'received', createdAt: nowIso() });
+      const id = uid('dr');
+      s.dataRequests.push({ id, userId, type: 'deletion', status: 'received', createdAt: nowIso() });
+      track(s, 'deletion_requested', { actorId: userId, targetType: 'data_request', targetId: id });
       notifyModerators(s, tr('A data deletion request was received (demo).'), '/moderation?tab=reports', userId);
     }
   });

@@ -12,7 +12,7 @@ import { areaLabel } from '../data/geo.js';
 import { category } from '../data/categories.js';
 import { field as fieldById, employmentType } from '../data/fields.js';
 import { fmt, t } from '../i18n.js';
-import { VERIFICATION_STATUS } from '../logic/status.js';
+import { VERIFICATION_STATUS, BUSINESS_CHECK } from '../logic/status.js';
 import { APP } from '../config.js';
 import { inviteTasker } from '../services/marketplace.js';
 import { saveTaskerAbout, saveTaskerWork, saveOpportunity } from '../services/accounts.js';
@@ -108,7 +108,7 @@ function clientProfile(u, viewer) {
 function businessProfile(u, viewer) {
   const b = businessOf(u.id);
   return html`<div class="wrap page page--narrow">
-    <section class="card profile-hero">${personAvatar(u, 'xl')}<div class="profile-hero__text"><h1 tabindex="-1">${b.companyName}</h1><p class="lead">${fieldById(b.field)?.label || ''} · ${b.size} people</p><p class="meta-line">${icon('pin', 16)}${b.locationArea ? areaLabel(b.locationArea) : ''}</p><p>${badge(b.verifiedStatus === 'pending_review' ? 'Business details pending review' : 'Business details not checked', 'warn', 'shield')}</p></div></section>
+    <section class="card profile-hero">${personAvatar(u, 'xl')}<div class="profile-hero__text"><h1 tabindex="-1">${b.companyName}</h1><p class="lead">${fieldById(b.field)?.label || ''} · ${b.size} people</p><p class="meta-line">${icon('pin', 16)}${b.locationArea ? areaLabel(b.locationArea) : ''}</p><p>${badge((BUSINESS_CHECK[b.verifiedStatus] || BUSINESS_CHECK.not_started).label, (BUSINESS_CHECK[b.verifiedStatus] || BUSINESS_CHECK.not_started).tone, 'shield')}</p></div></section>
     <section class="card"><h2 class="card__title">About</h2><p>${b.description}</p>${kv([['Hiring for', b.hiringIntent?.roles || '—'], ['Kind of work', (b.hiringIntent?.types || []).map(employmentType).join(', ') || '—'], ['Website', b.website || '—']])}</section>
     ${viewer && viewer.id !== u.id ? safetyLinks('user', u.id, u.id) : ''}
   </div>`;

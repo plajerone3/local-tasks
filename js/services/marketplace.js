@@ -12,7 +12,8 @@ import { validateTask, validateApplication, validateReview, hasErrors } from '..
 import { move, canMove } from '../logic/status.js';
 import { breakdown } from '../logic/money.js';
 import { APP } from '../config.js';
-import { ok, fail, notify, notifyModerators, short, emitHook, audit } from './common.js';
+import { ok, fail, notify, notifyModerators, short, emitHook, track, gate, queuePayout } from './common.js';
+import { scanTask, isHighRisk } from '../logic/flags.js';
 
 const lines = (v) => String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
 
@@ -31,11 +32,16 @@ export function checkTask(draft) {
 }
 
 export function publishTask(clientId, draft) {
+  const blocked = gate(clientId, 'post');
+  if (blocked) return blocked;
   const errors = checkTask(draft);
   if (hasErrors(errors)) return fail(errors);
   const policy = policyOf(draft.category);
   const id = uid('t');
-  const status = policy === 'review' ? 'under_review' : 'open';
+  const flagSettings = getState().settings?.flags;
+  const flags = scanTask({ ...draft, requirements: lines(draft.requirements) }, flagSettings);
+  const autoHeld = policy !== 'review' && !!flagSettings?.holdHighRisk && isHighRisk(flags);
+  const status = policy === 'review' || autoHeld ? 'under_review' : 'open';
   update((s) => {
     s.tasks.unshift({
       id, clientId, title: draft.title, category: draft.category, description: draft.description,
@@ -44,12 +50,14 @@ export function publishTask(clientId, draft) {
       budgetMin: Number(draft.budgetMin), budgetMax: Number(draft.budgetMax),
       requirements: lines(draft.requirements), safetyNotes: draft.safetyNotes, status, createdAt: nowIso(),
       exactAddress: draft.exactAddress, invitedIds: [], hidden: false, recurring: draft.recurring || null, reviewNote: null,
+      flags, autoHeld,
     });
     if (status === 'under_review') {
       notifyModerators(s, tr('Task waiting for manual review: “{title}”.', { title: short(draft.title) }), '/moderation?tab=tasks', clientId);
       notify(s, clientId, tr('“{title}” is in manual review. We will tell you when it is live.', { title: short(draft.title) }), `/tasks/${id}`);
     }
-    audit(s, clientId, 'task_published', id);
+    track(s, 'task_published', { actorId: clientId, targetType: 'task', targetId: id, meta: { status, category: draft.category, budgetMax: Number(draft.budgetMax) } });
+    if (flags.length) track(s, autoHeld ? 'task_auto_held' : 'task_flagged', { targetType: 'task', targetId: id, meta: { rules: flags.map((f) => f.rule) } });
   });
   return ok({ id, status });
 }
@@ -62,6 +70,7 @@ export function cancelTask(taskId, clientId, reason = '') {
     const task = s.tasks.find((x) => x.id === taskId);
     move('task', task, 'cancelled');
     task.cancelReason = reason;
+    track(s, 'task_cancelled', { actorId: clientId, targetType: 'task', targetId: taskId, reason: reason || null });
     for (const a of s.applications.filter((x) => x.taskId === taskId && ['applied', 'shortlisted'].includes(x.status))) {
       a.status = 'declined';
       notify(s, a.taskerId, tr('“{title}” was cancelled by the client. This does not affect your profile.', { title: short(task.title) }), `/tasks/${taskId}`, clientId);
@@ -74,8 +83,11 @@ export function inviteTasker(taskId, clientId, taskerId) {
   const t = taskById(taskId);
   if (!t || t.clientId !== clientId || t.status !== 'open') return fail({}, tr('You can only invite people to your own open tasks.'));
   if (t.invitedIds.includes(taskerId)) return fail({}, tr('You already invited this person.'));
+  const blocked = gate(clientId, 'invite');
+  if (blocked) return blocked;
   update((s) => {
     s.tasks.find((x) => x.id === taskId).invitedIds.push(taskerId);
+    track(s, 'tasker_invited', { actorId: clientId, targetType: 'task', targetId: taskId, meta: { taskerId } });
     notify(s, taskerId, tr('{name} invited you to apply to “{title}”.', { name: firstName(userById(clientId)), title: short(t.title) }), `/tasks/${taskId}`, clientId);
   });
   emitHook('invited', { taskId, taskerId, clientId });
@@ -88,6 +100,8 @@ export function applyToTask(taskId, taskerId, d, { simulated = false } = {}) {
   if (t.clientId === taskerId) return fail({}, tr('You cannot apply to your own task.'));
   if (t.status !== 'open') return fail({}, tr('This task is not accepting applications right now.'));
   if (myApplication(taskId, taskerId)) return fail({}, tr('You have already applied to this task.'));
+  const blocked = gate(taskerId, 'apply');
+  if (blocked) return blocked;
   const errors = validateApplication(d);
   if (hasErrors(errors)) return fail(errors);
   const id = uid('ap');
@@ -97,6 +111,7 @@ export function applyToTask(taskId, taskerId, d, { simulated = false } = {}) {
       availability: d.availability.trim(), relevantSkills: d.relevantSkills || [], status: 'applied',
       createdAt: nowIso(), shortlistedAt: null, simulated,
     });
+    track(s, 'application_sent', { actorId: taskerId, targetType: 'task', targetId: taskId, meta: { applicationId: id, rate: Number(String(d.proposedRate).replace(',', '.')), ...(simulated ? { simulated: true } : {}) } });
     notify(s, t.clientId, tr('{name} applied to “{title}”.', { name: firstName(userById(taskerId)), title: short(t.title) }), `/tasks/${taskId}/applicants`, taskerId);
   });
   return ok({ id });
@@ -106,7 +121,10 @@ export function withdrawApplication(appId, taskerId) {
   const a = applicationById(appId);
   if (!a || a.taskerId !== taskerId) return fail({}, tr('Application not found.'));
   if (!['applied', 'shortlisted'].includes(a.status)) return fail({}, tr('This application can no longer be withdrawn. If you were accepted, cancel the assignment instead.'));
-  update((s) => { move('application', s.applications.find((x) => x.id === appId), 'withdrawn'); });
+  update((s) => {
+    move('application', s.applications.find((x) => x.id === appId), 'withdrawn');
+    track(s, 'application_withdrawn', { actorId: taskerId, targetType: 'task', targetId: a.taskId, meta: { applicationId: appId } });
+  });
   return ok();
 }
 
@@ -120,6 +138,7 @@ export function toggleShortlist(appId, clientId) {
     const x = s.applications.find((y) => y.id === appId);
     move('application', x, to);
     x.shortlistedAt = to === 'shortlisted' ? nowIso() : null;
+    track(s, to === 'shortlisted' ? 'application_shortlisted' : 'application_unshortlisted', { actorId: clientId, targetType: 'task', targetId: t.id, meta: { applicationId: appId, taskerId: x.taskerId } });
     if (to === 'shortlisted') notify(s, x.taskerId, tr('You were shortlisted for “{title}”.', { title: short(t.title) }), `/tasks/${t.id}`, clientId);
   });
   return ok({ status: to });
@@ -132,6 +151,7 @@ export function declineApplication(appId, clientId) {
   if (!canMove('application', a.status, 'declined')) return fail({}, tr('This application can no longer be declined.'));
   update((s) => {
     move('application', s.applications.find((y) => y.id === appId), 'declined');
+    track(s, 'application_declined', { actorId: clientId, targetType: 'task', targetId: t.id, meta: { applicationId: appId, taskerId: a.taskerId } });
     notify(s, a.taskerId, tr('The client chose someone else for “{title}”. This does not affect your profile.', { title: short(t.title) }), `/tasks/${t.id}`, clientId);
   });
   return ok();
@@ -164,6 +184,8 @@ export function acceptApplication(appId, clientId) {
       { id: uid('tx'), userId: a.taskerId, type: 'earning', amount: b.price, fee: b.taskerFee, status: 'pending', relatedTaskId: t.id, label: `Pending for “${t.title}”`, createdAt: nowIso(), demoOnly: true },
     );
     notify(s, a.taskerId, tr('You were accepted for “{title}”.', { title: short(t.title) }), `/assignments/${asgId}`, clientId);
+    track(s, 'application_accepted', { actorId: clientId, targetType: 'assignment', targetId: asgId, meta: { taskId: t.id, taskerId: a.taskerId, price: b.price } });
+    track(s, 'payment_reserved', { targetType: 'task', targetId: t.id, meta: { amount: b.clientTotal } });
   });
   return ok({ assignmentId: asgId });
 }
@@ -178,7 +200,10 @@ function syncTask(s, asg) {
 function setTx(s, taskId, status) {
   for (const tx of s.walletTransactions.filter((x) => x.relatedTaskId === taskId && ['pending', 'on_hold'].includes(x.status))) {
     tx.status = status;
-    if (status === 'completed') tx.label = tx.label.replace(/^(Reserved for|Pending for|On hold:)/, tx.type === 'payment' ? 'Payment for' : 'Earning for');
+    if (status === 'completed') {
+      tx.label = tx.label.replace(/^(Reserved for|Pending for|On hold:)/, tx.type === 'payment' ? 'Payment for' : 'Earning for');
+      queuePayout(s, tx);
+    }
     if (status === 'refunded') tx.label = tx.label.replace(/^(Reserved for|Pending for|On hold:)/, 'Refunded:');
   }
 }
@@ -199,6 +224,7 @@ export function startAssignment(asgId, userId) {
     move('assignment', x, 'in_progress');
     x.startedAt = nowIso();
     const task = syncTask(s, x);
+    track(s, 'assignment_started', { actorId: userId, targetType: 'assignment', targetId: asgId, meta: { taskId: task.id } });
     notify(s, task.clientId, tr('{name} started “{title}”.', { name: firstName(userById(userId)), title: short(task.title) }), `/assignments/${asgId}`, userId);
   });
   return ok();
@@ -213,6 +239,8 @@ function completeIn(s, asgId, byUserId) {
   setTx(s, task.id, 'completed');
   const p = s.taskerProfiles.find((y) => y.userId === x.taskerId);
   if (p) p.completedTaskCount += 1;
+  track(s, 'assignment_completed', { actorId: byUserId, targetType: 'assignment', targetId: asgId, meta: { taskId: task.id, price: x.agreedPrice } });
+  track(s, 'payment_released', { targetType: 'task', targetId: task.id, meta: { amount: x.agreedPrice } });
   notify(s, x.taskerId, tr('“{title}” is complete. You can now leave a review.', { title: short(task.title) }), `/assignments/${asgId}/review`, byUserId);
   notify(s, task.clientId, tr('“{title}” is complete. You can now leave a review.', { title: short(task.title) }), `/assignments/${asgId}/review`, byUserId);
 }
@@ -235,6 +263,7 @@ export function markComplete(asgId, userId) {
     x.completionRequestedBy = userId;
     x.completionRequestedAt = nowIso();
     const task = syncTask(s, x);
+    track(s, 'completion_requested', { actorId: userId, targetType: 'assignment', targetId: asgId, meta: { taskId: task.id } });
     notify(s, task.clientId, tr('{name} marked “{title}” as completed. Please confirm.', { name: firstName(userById(userId)), title: short(task.title) }), `/assignments/${asgId}`, userId);
   });
   return ok({ status: 'awaiting_confirmation' });
@@ -261,6 +290,8 @@ export function cancelAssignment(asgId, userId, reason = '') {
     x.cancelledBy = userId;
     x.paymentStatus = 'refunded_demo';
     setTx(s, task.id, 'refunded');
+    track(s, 'assignment_cancelled', { actorId: userId, targetType: 'assignment', targetId: asgId, meta: { taskId: task.id, by: who }, reason: reason || null });
+    track(s, 'payment_refunded', { targetType: 'task', targetId: task.id, meta: { amount: x.agreedPrice } });
     const app = s.applications.find((y) => y.id === x.applicationId);
     if (app && app.status === 'accepted') app.status = 'withdrawn';
     if (who === 'tasker') {
@@ -283,6 +314,7 @@ export function shareAddress(asgId, clientId) {
   if (!task.exactAddress) return fail({}, tr('Add the address in the task first.'));
   update((s) => {
     s.assignments.find((y) => y.id === asgId).addressShared = true;
+    track(s, 'address_shared', { actorId: clientId, targetType: 'assignment', targetId: asgId, meta: { taskId: task.id } });
     const conv = findConversation('task', task.id, [clientId, asg.taskerId]);
     if (conv) s.messages.push({ id: uid('m'), conversationId: conv.id, senderId: null, body: `${firstName(userById(clientId))} shared the exact address.`, createdAt: nowIso(), readBy: [...conv.participantIds], system: true, masked: false, simulated: false, hidden: false });
     notify(s, asg.taskerId, tr('The exact address for “{title}” is now visible to you.', { title: short(task.title) }), `/assignments/${asgId}`, clientId);
@@ -294,7 +326,10 @@ export function setTaskAddress(taskId, clientId, address) {
   const t = taskById(taskId);
   if (!t || t.clientId !== clientId) return fail({}, tr('Task not found.'));
   if (String(address || '').trim().length < 5) return fail({ address: tr('Enter the full street address.') });
-  update((s) => { s.tasks.find((x) => x.id === taskId).exactAddress = address.trim(); });
+  update((s) => {
+    s.tasks.find((x) => x.id === taskId).exactAddress = address.trim();
+    track(s, 'task_address_set', { actorId: clientId, targetType: 'task', targetId: taskId });
+  });
   return ok();
 }
 
@@ -305,13 +340,17 @@ export function submitReview(asgId, reviewerId, d) {
   if (asg.status === 'disputed') return fail({}, tr('Reviews are paused while a dispute is open.'));
   if (asg.status !== 'completed') return fail({}, tr('You can leave a review once the task is completed.'));
   if (reviewByFor(asgId, reviewerId)) return fail({}, tr('You have already reviewed this task.'));
+  const blocked = gate(reviewerId, 'review');
+  if (blocked) return blocked;
   const errors = validateReview(d);
   if (hasErrors(errors)) return fail(errors);
   const task = taskById(asg.taskId);
   const revieweeId = who === 'client' ? asg.taskerId : task.clientId;
+  const reviewId = uid('rv');
   update((s) => {
+    track(s, 'review_posted', { actorId: reviewerId, targetType: 'review', targetId: reviewId, meta: { stars: Number(d.stars), revieweeId, taskId: task.id } });
     s.reviews.unshift({
-      id: uid('rv'), reviewerId, revieweeId, taskId: task.id, assignmentId: asgId, taskTitle: task.title,
+      id: reviewId, reviewerId, revieweeId, taskId: task.id, assignmentId: asgId, taskTitle: task.title,
       category: who === 'client' ? task.category : null, stars: Number(d.stars), tags: d.tags || [],
       comment: (d.comment || '').trim(), status: 'published', visibility: d.visibility === 'private' ? 'private' : 'public', createdAt: nowIso(),
     });

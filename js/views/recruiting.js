@@ -8,6 +8,7 @@ import { areaLabel } from '../data/geo.js';
 import { fmt, t } from '../i18n.js';
 import { respondConnection, setOutcome, OUTCOMES } from '../services/recruiting.js';
 import { setDiscoverability } from '../services/accounts.js';
+import { BUSINESS_CHECK } from '../logic/status.js';
 import { personAvatar, reportButton, blockButton } from './common.js';
 import { consentText } from './profile-forms.js';
 import { go } from '../router.js';
@@ -41,7 +42,7 @@ function request(c, isPending) {
   return html`<li class="card cand">
     <div class="cand__head">
       <span class="person">${personAvatar(bu)}<span class="person__text"><a class="person__name" href="#/profile/${bu.id}">${biz.companyName}</a><span class="person__sub">${fieldById(biz.field)?.label} · ${biz.size} people · ${areaLabel(biz.locationArea)}</span></span></span>
-      <div class="row row--tight">${badge(biz.verifiedStatus === 'pending_review' ? 'Business details pending review' : 'Not checked', 'warn', 'shield')}${statusBadge('connection', c.status)}</div>
+      <div class="row row--tight">${badge((BUSINESS_CHECK[biz.verifiedStatus] || BUSINESS_CHECK.not_started).label, (BUSINESS_CHECK[biz.verifiedStatus] || BUSINESS_CHECK.not_started).tone, 'shield')}${statusBadge('connection', c.status)}</div>
     </div>
     <blockquote class="quote">${c.message}</blockquote>
     <p class="small muted">Received ${fmt.relative(c.createdAt)} · hiring: ${biz.hiringIntent?.roles || '—'}</p>

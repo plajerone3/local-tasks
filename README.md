@@ -6,7 +6,7 @@ businesses can discover taskers who **chose** to be visible for stable work.
 
 "Local Tasks" is a working title. It lives in one place: `js/config.js`.
 
-**Try it online:** [web app](https://plajerone3.github.io/local-tasks/) · [mobile app view](https://plajerone3.github.io/local-tasks/app.html) (GitHub Pages; all data is fake demo data and stays in your browser).
+**Try it online:** [web app](https://plajerone3.github.io/local-tasks/) · [mobile app view](https://plajerone3.github.io/local-tasks/app.html) · [staff backoffice](https://plajerone3.github.io/local-tasks/admin.html) (GitHub Pages; all data is fake demo data and stays in your browser).
 
 This folder is self-contained: every path is relative, and nothing outside it is used.
 
@@ -22,6 +22,7 @@ Then open:
 
 - **Web app:** <http://localhost:4180/>
 - **Mobile app view:** <http://localhost:4180/app.html>. On a computer it shows inside a phone frame; on a phone it fills the screen.
+- **Staff backoffice:** <http://localhost:4180/admin.html>. Pick a team member to sign in.
 
 `serve.py` is Python's built-in server with browser caching switched off, so changes show up on
 a normal reload. Opening `index.html` straight from disk will not work, because browsers block
@@ -33,9 +34,10 @@ Tests (Node 20+; no packages to install), also from this folder:
 npm test
 ```
 
-26 tests: logic (matching, statuses, validation, masking, fees), the end-to-end service
-flows, and smoke tests that render every web and mobile screen for every demo account and fail
-on `undefined`, `NaN` or forbidden promises like "guaranteed income".
+43 tests: logic (matching, statuses, validation, masking, fees), the end-to-end service
+flows, the backoffice (permissions, decisions and their effect on the apps, activity tracking),
+and smoke tests that render every web, mobile and backoffice screen for every demo account and
+staff role, and fail on `undefined`, `NaN` or forbidden promises like "guaranteed income".
 
 ## Mobile app view
 
@@ -57,6 +59,70 @@ to reseed). Translations: `js/locales/de.js` (UI, keyed by the English text pass
 `de-seed.js` (demo content) and `de-content.js` (category skills and example tasks).
 `tests/mobile-de.test.mjs` renders every mobile screen in German and fails on any missing
 translation or leftover English.
+
+## Staff backoffice
+
+`admin.html` is the company side: the tool you and your team use to watch everything that
+happens in both apps and to step in. It runs on the same data as the apps, so an action in the
+web or mobile app shows up in the backoffice at once (other tabs sync live), and a decision made
+in the backoffice applies to the apps at once.
+
+**Sign in** by picking a team member. There are no passwords in the demo; a real backoffice needs
+single sign-on with two-factor authentication.
+
+| Staff | Role | Can do |
+|---|---|---|
+| Jakob | Owner | Everything, including staff and settings |
+| Nora Lechner | Admin | Everything except removing the owner |
+| Mira Hofbauer | Trust & Safety | Reports, flags, task approvals, warnings, restrict/suspend/ban, ID/business/proof checks, disputes, private conversations |
+| Tarik Hasanović | Support | Warnings and notices, private conversations, data requests, open the app as a user |
+| Lea Brandstätter | Finance | Payouts, refunds, disputes |
+| Samir Haddad | Analyst | Read-only, plus CSV exports |
+| Felix Auer | Support (deactivated) | Nothing: shows a former employee |
+
+The full permission matrix is under **Staff & roles**. Roles live in `js/logic/staff.js`.
+
+**What it covers**
+
+- **Overview:** open cases, overdue cases, users, live tasks, money volume and revenue, money on
+  hold, limited accounts, activity per day, and a live feed.
+- **Work queue:** everything waiting for a person, most pressing first, with a target time per
+  queue (overdue cases turn red). Queues: reports, automatically flagged tasks and messages, task
+  approvals (regulated categories and auto-held tasks), disputes, payouts, ID checks, business
+  checks, proof checks and data requests. Each case has an owner (take it or assign it), internal
+  notes, the people involved with their risk signals, the full history, and the decision buttons.
+- **Decisions:** approve or decline tasks; uphold reports (warn, hide); clear or act on flags;
+  edit, hide or cancel tasks (with refunds); warn, restrict, suspend, ban or reinstate accounts;
+  check identities, businesses and proof; resolve disputes (release, refund, split, resume);
+  approve or hold payouts; goodwill refunds; complete deletion requests; send notices and
+  announcements. Every decision that affects someone asks for a reason, notifies them, and lands
+  in the audit log.
+- **Live activity:** every action in both apps and the backoffice (sign-ups, sign-ins, posts,
+  applications, messages, reviews, payments, reports, staff decisions), filterable and exportable.
+- **Users, Tasks, Conversations, Reviews, Money:** searchable lists and full detail pages.
+- **Audit log:** what each staff member did, when and why, including who opened which private
+  conversation.
+- **Settings:** risk-flag word lists and holds, category policies, target times, payout rules,
+  announcements.
+
+**How the apps react**
+
+- *Restricted:* a notice on every screen; current jobs and chats continue, but the person cannot
+  post, apply, invite, review or send business requests.
+- *Suspended or banned:* the apps show an "account paused" screen with the reason, sign-in is
+  refused, and their open tasks are hidden (banned also withdraws their pending applications).
+  Reinstating brings the tasks back. A suspension with an end date lifts itself.
+- *Automatic flags:* new tasks and messages are scanned for off-platform contact, requests for ID
+  or money up front, cash-only wording, contact details and unusually high pay. High-risk tasks
+  are held for approval before going live (a setting). Flags never delete anything.
+- *Payouts:* a tasker's first payout, and any payout over €150, waits for finance.
+- *Private messages* stay hidden in the backoffice until a staff member opens the conversation
+  with a reason; access lasts 30 minutes and is logged.
+- *Notifications* from staff are written in the language of the demo data (German if the mobile
+  app created it); the backoffice itself is English.
+
+The in-app moderation console (`#/moderation`, Mira's app account) still works and links to the
+backoffice.
 
 ## Fastest way to review
 
@@ -83,7 +149,7 @@ data stays in sync between them through `localStorage` events.
 | GrünRaum Gartenbau | Business, gardening | Candidate search, saved candidates |
 | ClearSpace Reinigung | Business, cleaning | Pending request to Ana |
 | Donau Capital Partners | Business, financial services | Shows field-relevant ranking (economics proof beats moving history) |
-| Mira Hofbauer | Moderator | Reports, proof review, restricted tasks, disputes, category policy |
+| Mira Hofbauer | Moderator | Reports, proof review, restricted tasks, disputes, category policy (the full staff tool is the backoffice) |
 
 ## What is real, what is mocked
 
@@ -97,7 +163,7 @@ data stays in sync between them through `localStorage` events.
 | Verification | Labels only: self-reported → pending review → "checked by moderator (demo)" | Identity provider, registry and licence checks, audit trail |
 | Messaging | Local, with phone/email masking until a task or connection is accepted | Realtime delivery, abuse detection, retention |
 | Notifications | In-app list and toasts | Email, push, preferences, digests |
-| Moderation | Working console with logged decisions (`state.auditLog`) | Staff tooling, SLAs, appeals, legal holds |
+| Backoffice | Working staff tool: queues, target times, roles and permissions, enforcement, audit log (`state.activity`) | Staff SSO + 2FA, server-side permission checks, appeals, legal holds, real ID/registry checks |
 | Simulation | Seeded people auto-reply to messages and answer invites, always labelled "Demo" | Remove (`APP.simulation = false`) |
 
 ## Structure
@@ -107,13 +173,16 @@ index.html            shell, noindex
 css/app.css           design tokens + components, mobile first
 js/config.js          name, locale, currency, fees, feature flags
 js/data/              seed, categories + policies, business fields, Austrian areas
-js/logic/             pure rules: matching, status machines, validation, fees, reputation, privacy
-js/services/          the mock API: one function per future endpoint
+js/logic/             pure rules: matching, status machines, validation, fees, reputation, privacy,
+                      staff roles, risk flags, account standing
+js/services/          the mock API: one function per future endpoint (backoffice.js = staff actions)
 js/store.js           persistence (replace with an API client)
 js/select.js          read-only queries
 js/ui/                html templating, components, dialogs, icons, UI state
 js/views/             one module per screen, named by user intent
 js/mobile/            phone app view (app.html): screens, map, UI helpers
+js/admin/             staff backoffice (admin.html): queues, cases, users, tasks, money, staff, settings
+css/admin.css         backoffice styles on top of the app tokens
 js/locales/           German translations (UI, demo content)
 js/i18n.js            tr()/trn(), language switch, number and date formats
 tests/                node:test suites
@@ -132,7 +201,10 @@ move to a backend, keep `logic/` and replace `services/` + `store.js` with API c
 
 `User`, `TaskerProfile`, `BusinessProfile`, `Task`, `Application`, `Assignment`, `Conversation`,
 `Message`, `Review`, `ProofItem`, `WalletTransaction`, `BusinessConnection`, `Report`, plus
-`Dispute`, `Block`, `SavedCandidate`, `Notification`, `DataRequest` and `AuditLog`. Field names
+`Dispute`, `Block`, `SavedCandidate`, `Notification` and `DataRequest`. The backoffice adds
+`Staff`, `ActivityEvent` (every action, staff and users), `StaffNote`, `CaseMeta` (case owner),
+`AccessLog` (private conversations opened) and `Settings`; users get `enforcement`, tasks and
+messages get `flags`, earnings get `payoutStatus`. Field names
 follow the brief; see `js/data/seed.js` for full examples of every record.
 
 ### Matching (`js/logic/matching.js`)
@@ -172,7 +244,10 @@ labels would make the prototype misleading. Legal sign-off would not change that
 ## Known limitations
 
 - Single-browser data. Two tabs share it; two devices do not.
-- No real authentication. Anyone can switch to any demo account by design.
+- No real authentication. Anyone can switch to any demo account, or sign in to the backoffice
+  as any staff member, by design. The backoffice is public on GitHub Pages for the same reason;
+  a real one would sit behind staff SSO on its own domain.
+- The activity log keeps the newest 3,000 entries (browser storage is small).
 - Distances are between district centres, not addresses. There is no map.
 - Rendering re-draws the whole screen on each change. Typed values and focus are preserved,
   but very large lists would need virtualisation or a component framework.
